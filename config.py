@@ -20,6 +20,10 @@ PAYMENT_PROVIDER_TOKEN = os.getenv("PAYMENT_PROVIDER_TOKEN", "")  # Payme provid
 # Database Configuration
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{BASE_DIR}/olympiad.db")
 
+# Fix postgres:// to postgresql+asyncpg:// for async support
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+
 # Admin Configuration
 ADMIN_IDS: list[int] = [
     int(admin_id.strip()) 
