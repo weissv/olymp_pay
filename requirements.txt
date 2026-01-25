@@ -8,8 +8,9 @@ aiosqlite>=0.19.0  # For SQLite async support
 asyncpg>=0.29.0    # For PostgreSQL (optional, for production)
 greenlet>=3.0.0    # Required by SQLAlchemy for async
 
-# Data export
-pandas>=2.0.0
+# Data export - pinned versions for older CPU compatibility
+numpy<2.0.0        # NumPy 2.x requires X86_V2 CPU instructions
+pandas>=2.0.0,<2.2.0
 openpyxl>=3.1.0    # For Excel export
 
 # Optional: For better async performance
