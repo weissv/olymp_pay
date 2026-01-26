@@ -281,6 +281,80 @@ async def cmd_export(message: Message) -> None:
         await message.answer(get_text("error_occurred", "en"))
 
 
+@router.message(Command("view"))
+async def cmd_view(message: Message) -> None:
+    """Handle /view command - admin only. View registration by ID with screenshot."""
+    user_id = message.from_user.id
+    username = message.from_user.username or "N/A"
+    
+    if user_id not in ADMIN_IDS:
+        logger.warning(f"[{user_id}] [{username}] - Access denied for /view")
+        await message.answer(get_text("admin_access_denied", "en"))
+        return
+    
+    # Parse registration ID from command
+    try:
+        parts = message.text.split()
+        if len(parts) < 2:
+            await message.answer("📋 Использование: /view {ID}\n\nПример: /view 4")
+            return
+        
+        registration_id = int(parts[1])
+    except ValueError:
+        await message.answer("❌ ID должен быть числом. Пример: /view 4")
+        return
+    
+    logger.info(f"[{user_id}] [{username}] - Viewing registration ID: {registration_id}")
+    
+    try:
+        user = await DatabaseManager.get_registration_by_id(registration_id)
+        
+        if not user:
+            await message.answer(f"❌ Регистрация с ID {registration_id} не найдена.")
+            return
+        
+        # Format registration info
+        info = f"""
+📋 **Регистрация #{user.id}**
+
+👤 **Родитель:** {user.parent_name}
+📧 **Email:** {user.email}
+📱 **Телефон:** {user.phone}
+
+👨‍🎓 **Участник:**
+• Фамилия: {user.surname}
+• Имя: {user.name}
+• Класс: {user.grade}
+• Школа: {user.school}
+
+🔖 **Charge ID:** `{user.charge_id or 'N/A'}`
+💳 **Статус оплаты:** {'✅ Оплачено' if user.payment_status else '❌ Не оплачено'}
+📅 **Дата регистрации:** {user.created_at.strftime('%Y-%m-%d %H:%M:%S')}
+
+🆔 **Telegram ID:** {user.telegram_id}
+👤 **Username:** @{user.username or 'N/A'}
+"""
+        
+        # Send info message
+        await message.answer(info, parse_mode="Markdown")
+        
+        # Send screenshot if exists
+        if user.screenshot_file_id:
+            await message.answer_photo(
+                photo=user.screenshot_file_id,
+                caption=f"📸 Скриншот оплаты для регистрации #{user.id}"
+            )
+        else:
+            await message.answer("⚠️ Скриншот не загружен.")
+        
+        logger.info(f"[{user_id}] [{username}] - Viewed registration #{registration_id}")
+        
+    except Exception as e:
+        logger.error(f"[{user_id}] [{username}] - View error: {e}")
+        await message.answer(get_text("error_occurred", "en"))
+        await message.answer(get_text("error_occurred", "en"))
+
+
 # ==================== Language Selection Handler ====================
 
 @router.callback_query(StateFilter(RegState.LanguageSelect), F.data.startswith("lang_"))

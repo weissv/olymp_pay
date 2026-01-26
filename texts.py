@@ -199,9 +199,9 @@ TEXTS: dict[str, dict[str, str]] = {
     
     # Help
     "help": {
-        "ru": "ℹ️ Этот бот предназначен для регистрации на Олимпиаду.\n\n📌 Вы можете зарегистрировать несколько участников с одного аккаунта.\n\nКоманды:\n/start - Начать регистрацию\n/cancel - Отменить регистрацию\n/help - Показать справку",
-        "uz": "ℹ️ Bu bot Olimpiadaga ro'yxatdan o'tish uchun mo'ljallangan.\n\n📌 Bitta akkauntdan bir nechta ishtirokchini ro'yxatdan o'tkazishingiz mumkin.\n\nBuyruqlar:\n/start - Ro'yxatdan o'tishni boshlash\n/cancel - Ro'yxatdan o'tishni bekor qilish\n/help - Yordam ko'rsatish",
-        "en": "ℹ️ This bot is designed for Olympiad registration.\n\n📌 You can register multiple participants from one account.\n\nCommands:\n/start - Start registration\n/cancel - Cancel registration\n/help - Show help",
+        "ru": "ℹ️ Этот бот предназначен для регистрации на Олимпиаду.\n\n📌 Вы можете зарегистрировать несколько участников с одного аккаунта.\n\n👤 Команды пользователя:\n/start - Начать регистрацию\n/cancel - Отменить регистрацию\n/help - Показать справку\n\n👨‍💼 Команды администратора:\n/export - Экспорт всех регистраций в Excel\n/view {ID} - Просмотр регистрации со скриншотом",
+        "uz": "ℹ️ Bu bot Olimpiadaga ro'yxatdan o'tish uchun mo'ljallangan.\n\n📌 Bitta akkauntdan bir nechta ishtirokchini ro'yxatdan o'tkazishingiz mumkin.\n\n👤 Foydalanuvchi buyruqlari:\n/start - Ro'yxatdan o'tishni boshlash\n/cancel - Ro'yxatdan o'tishni bekor qilish\n/help - Yordam ko'rsatish\n\n👨‍💼 Administrator buyruqlari:\n/export - Barcha ro'yxatlarni Excel'ga eksport qilish\n/view {ID} - Skrinshot bilan ro'yxatni ko'rish",
+        "en": "ℹ️ This bot is designed for Olympiad registration.\n\n📌 You can register multiple participants from one account.\n\n👤 User commands:\n/start - Start registration\n/cancel - Cancel registration\n/help - Show help\n\n👨‍💼 Admin commands:\n/export - Export all registrations to Excel\n/view {ID} - View registration with screenshot",
     },
     
     # My ID (for admin setup)
