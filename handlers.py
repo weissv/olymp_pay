@@ -166,23 +166,15 @@ def generate_payme_link(
     Returns:
         Payme checkout URL with encoded params
     """
-    # Transliterate to avoid encoding issues
-    student_latin = transliterate_to_latin(student_name)
+    import time
     
     # Generate unique order ID (timestamp + user_id)
-    import time
-    order_id = f"OLP_{int(time.time())}_{user_id}"
+    order_id = f"{int(time.time())}_{user_id}"
     
-    # Build parameters string for Payme
-    # Format: m=MERCHANT_ID;ac.order_id=ORDER;ac.user_id=ID;ac.student=NAME;ac.grade=N;a=AMOUNT
-    params = (
-        f"m={merchant_id};"
-        f"ac.order_id={order_id};"
-        f"ac.user_id={user_id};"
-        f"ac.student={student_latin};"
-        f"ac.grade={grade};"
-        f"a={amount}"
-    )
+    # Build parameters string for Payme (minimal required params)
+    # Format: m=MERCHANT_ID;ac.order_id=ORDER;a=AMOUNT
+    # Note: only ac.order_id is a standard param, others must be configured in Payme dashboard
+    params = f"m={merchant_id};ac.order_id={order_id};a={amount}"
     
     # Encode to base64
     encoded = base64.b64encode(params.encode('utf-8')).decode('utf-8')
