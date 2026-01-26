@@ -3,10 +3,11 @@ Handlers module with FSM logic for the Olympiad Registration Bot.
 Refactored to support:
 - Multiple registrations per Telegram account
 - Parent name and email fields
-- Payme checkout link (not native Telegram payments)
+- Payme checkout link with base64 params (fixed amount)
 - Grades 1-8 only
 """
 
+import base64
 import io
 import logging
 import re
@@ -153,29 +154,28 @@ def generate_payme_link(
     grade: int,
 ) -> str:
     """
-    Generate Payme checkout URL with embedded parameters.
+    Generate Payme checkout URL with base64-encoded parameters.
     
     Args:
         merchant_id: Payme Merchant ID
-        amount: Amount in tiyins
+        amount: Amount in tiyins (fixed, pre-filled)
         user_id: Telegram user ID
         student_name: Student's full name (surname + name)
         grade: Student's grade
         
     Returns:
-        Payme checkout URL
+        Payme checkout URL with encoded params
     """
     # Transliterate to avoid encoding issues
     student_latin = transliterate_to_latin(student_name)
     
     # Generate unique order ID (timestamp + user_id)
     import time
-    order_id = f"{int(time.time())}_{user_id}_{grade}"
+    order_id = f"OLP_{int(time.time())}_{user_id}"
     
-    # Build checkout URL (Payme format - NO base64 encoding)
-    # Format: m={merchant_id};ac.order_id={order_id};ac.user_id={user_id};ac.student={student};ac.grade={grade};a={amount}
-    payme_url = (
-        f"https://checkout.paycom.uz/"
+    # Build parameters string for Payme
+    # Format: m=MERCHANT_ID;ac.order_id=ORDER;ac.user_id=ID;ac.student=NAME;ac.grade=N;a=AMOUNT
+    params = (
         f"m={merchant_id};"
         f"ac.order_id={order_id};"
         f"ac.user_id={user_id};"
@@ -183,6 +183,12 @@ def generate_payme_link(
         f"ac.grade={grade};"
         f"a={amount}"
     )
+    
+    # Encode to base64
+    encoded = base64.b64encode(params.encode('utf-8')).decode('utf-8')
+    
+    # Build checkout URL
+    payme_url = f"https://checkout.paycom.uz/{encoded}"
     
     return payme_url
 

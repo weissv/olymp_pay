@@ -18,6 +18,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 
 # Payme Configuration
 PAYME_MERCHANT_ID = os.getenv("PAYME_MERCHANT_ID", "")  # Merchant ID from Payme Business
+PAYME_SECRET_KEY = os.getenv("PAYME_SECRET_KEY", "")    # Secret Key from Payme Business
 
 # Database Configuration
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{BASE_DIR}/olympiad.db")
