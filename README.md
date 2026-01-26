@@ -5,9 +5,10 @@ A production-ready Telegram bot for Olympiad registration built with **aiogram 3
 ## ✨ Features
 
 - **Multi-language Support**: Russian, Uzbek, English
+- **Multiple Participants**: Register multiple children from one Telegram account
 - **Complete Registration Flow**: FSM-based step-by-step registration
-- **Payment Integration**: Payme provider support via Telegram Payments
-- **Screenshot Verification**: Manual verification option for payments
+- **Payme Integration**: Checkout URL-based payment (no native Telegram payments)
+- **Screenshot Verification**: Upload payment receipt for verification
 - **Admin Export**: Export all registrations to Excel
 - **Comprehensive Logging**: All user interactions logged
 
@@ -22,6 +23,8 @@ olymp_pay/
 ├── middleware.py      # Logging and throttling middleware
 ├── main.py            # Entry point
 ├── requirements.txt   # Python dependencies
+├── nixpacks.toml      # Deployment config (Coolify/Nixpacks)
+├── runtime.txt        # Python version specification
 ├── .env.example       # Environment variables template
 └── README.md          # Documentation
 ```
@@ -46,7 +49,7 @@ cp .env.example .env
 
 Required environment variables:
 - `BOT_TOKEN` - Get from [@BotFather](https://t.me/BotFather)
-- `PAYMENT_PROVIDER_TOKEN` - Get from Payme or BotFather payments setup
+- `PAYME_MERCHANT_ID` - Get from Payme Business dashboard
 - `ADMIN_IDS` - Comma-separated Telegram user IDs for admin access
 
 ### 3. Run the Bot
@@ -58,22 +61,52 @@ python main.py
 ## 📋 Registration Flow
 
 1. **Language Selection** - User chooses preferred language
-2. **Surname** - Enter surname (text validation)
-3. **Name** - Enter first name (text validation)
-4. **Grade** - Enter grade/class (1-11 validation)
-5. **School** - Enter school name
-6. **Phone** - Share contact via button
-7. **Payment** - Pay via Payme invoice
-8. **Screenshot** - Upload payment receipt screenshot
-9. **Complete** - Registration confirmed
+2. **Parent Name** - Enter parent/guardian full name
+3. **Email** - Enter contact email
+4. **Participant Surname** - Enter participant's surname
+5. **Participant Name** - Enter participant's first name
+6. **Grade** - Enter grade (1-8 only, Olympiad restriction)
+7. **School** - Enter school name
+8. **Phone** - Share contact via button
+9. **Payment** - Click Payme link and complete payment
+10. **Screenshot** - Upload payment receipt screenshot
+11. **Complete** - Registration confirmed
+12. **Register Another** - Option to register another participant
 
-## 🔧 Admin Commands
+## 💳 Payment System
 
-| Command | Description |
-|---------|-------------|
-| `/export` | Export all registrations to Excel file |
+The bot uses **Payme checkout URLs** (not native Telegram payments):
 
-Only users listed in `ADMIN_IDS` can use admin commands.
+1. User fills registration data
+2. Bot generates a checkout URL with base64-encoded parameters:
+   - Merchant ID
+   - Amount (in tiyin)
+   - User ID
+   - Student name
+   - Grade
+3. User clicks "Pay via Payme" button → opens Payme checkout page
+4. After payment, user clicks "I have paid" and uploads screenshot
+5. Admin can verify payments via exported Excel
+
+### Payme URL Format
+```
+https://checkout.paycom.uz/{base64_encoded_params}
+```
+
+Parameters:
+```
+m={merchant_id};ac.user_id={telegram_id};ac.student={student_name};ac.grade={grade};a={amount}
+```
+
+## 🔧 Commands
+
+| Command | Description | Access |
+|---------|-------------|--------|
+| `/start` | Start registration | All users |
+| `/help` | Show help information | All users |
+| `/cancel` | Cancel current registration | All users |
+| `/myid` | Show your Telegram ID | All users |
+| `/export` | Export registrations to Excel | Admins only |
 
 ## 🗄️ Database
 
@@ -89,22 +122,39 @@ DATABASE_URL=sqlite+aiosqlite:///./olympiad.db
 DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/olympiad
 ```
 
+**Note**: The bot auto-converts `postgres://` to `postgresql+asyncpg://` for compatibility with services like Coolify.
+
 ### User Table Schema
 
 | Column | Type | Description |
 |--------|------|-------------|
-| id | Integer | Primary key |
-| telegram_id | BigInteger | Unique Telegram user ID |
+| id | Integer | Primary key, auto-increment |
+| telegram_id | BigInteger | Telegram user ID (NOT unique - allows multiple registrations) |
 | username | String | Telegram username |
-| surname | String | User's surname |
-| name | String | User's first name |
-| grade | Integer | School grade (1-11) |
-| school | String | School name |
+| parent_name | String | Parent/Guardian full name |
+| email | String | Contact email |
 | phone | String | Phone number |
+| surname | String | Participant's surname |
+| name | String | Participant's first name |
+| grade | Integer | School grade (1-8) |
+| school | String | School name |
 | language | Enum | Preferred language (ru/uz/en) |
 | payment_status | Boolean | Payment completed |
 | screenshot_file_id | String | Telegram file ID of receipt |
 | created_at | DateTime | Registration timestamp |
+
+## 🚀 Deployment (Coolify)
+
+The bot is configured for Coolify deployment with Nixpacks:
+
+1. Push to your Git repository
+2. Connect repository in Coolify
+3. Set environment variables in Coolify dashboard
+4. Deploy
+
+Required files:
+- `nixpacks.toml` - Build configuration
+- `runtime.txt` - Python version (3.10)
 
 ## 📝 Logging
 
@@ -123,6 +173,7 @@ Log format:
 2. Use environment variables for sensitive data
 3. Regularly rotate bot tokens
 4. Keep `ADMIN_IDS` updated and minimal
+5. Verify payment screenshots manually
 
 ## 🐛 Troubleshooting
 
@@ -130,21 +181,20 @@ Log format:
 - Check `BOT_TOKEN` is valid
 - Ensure all dependencies are installed
 
-### Payments don't work
-- Verify `PAYMENT_PROVIDER_TOKEN` is correct
-- Check Payme integration in BotFather
+### Payment link doesn't work
+- Verify `PAYME_MERCHANT_ID` is correct
+- Check merchant is activated in Payme Business
 
 ### Database errors
 - Ensure write permissions in project directory
 - For PostgreSQL, verify connection string
+- If migrating from old schema, drop and recreate tables
+
+### Deployment issues on Coolify
+- Check `nixpacks.toml` configuration
+- Ensure `runtime.txt` specifies Python version
+- Verify all environment variables are set
 
 ## 📄 License
 
 MIT License - Feel free to use and modify.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request

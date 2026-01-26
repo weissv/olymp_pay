@@ -15,7 +15,9 @@ BASE_DIR = Path(__file__).resolve().parent
 
 # Bot Configuration
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
-PAYMENT_PROVIDER_TOKEN = os.getenv("PAYMENT_PROVIDER_TOKEN", "")  # Payme provider token
+
+# Payme Configuration
+PAYME_MERCHANT_ID = os.getenv("PAYME_MERCHANT_ID", "")  # Merchant ID from Payme Business
 
 # Database Configuration
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{BASE_DIR}/olympiad.db")
@@ -33,7 +35,6 @@ ADMIN_IDS: list[int] = [
 
 # Payment Configuration
 OLYMPIAD_PRICE = int(os.getenv("OLYMPIAD_PRICE", "50000"))  # Price in tiyin (500.00 UZS = 50000 tiyin)
-OLYMPIAD_CURRENCY = os.getenv("OLYMPIAD_CURRENCY", "UZS")
 
 # Logging Configuration
 LOG_FILE = BASE_DIR / "bot.log"
@@ -42,4 +43,4 @@ LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # Validation Constants
 MIN_GRADE = 1
-MAX_GRADE = 11
+MAX_GRADE = 8  # Changed from 11 to 8

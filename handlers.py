@@ -1,33 +1,36 @@
 """
 Handlers module with FSM logic for the Olympiad Registration Bot.
+Refactored to support:
+- Multiple registrations per Telegram account
+- Parent name and email fields
+- Payme checkout link (not native Telegram payments)
+- Grades 1-8 only
 """
 
+import base64
 import io
 import logging
 import re
 from datetime import datetime
 
 import pandas as pd
-from aiogram import Bot, F, Router
+from aiogram import F, Router
 from aiogram.filters import Command, CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
     BufferedInputFile,
     CallbackQuery,
-    ContentType,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     KeyboardButton,
-    LabeledPrice,
     Message,
-    PreCheckoutQuery,
     ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
 )
 
-from config import ADMIN_IDS, MAX_GRADE, MIN_GRADE, OLYMPIAD_CURRENCY, OLYMPIAD_PRICE, PAYMENT_PROVIDER_TOKEN
-from db import DatabaseManager, LanguageEnum, User, engine
+from config import ADMIN_IDS, MAX_GRADE, MIN_GRADE, OLYMPIAD_PRICE, PAYME_MERCHANT_ID
+from db import DatabaseManager, LanguageEnum, engine
 from texts import LANGUAGE_BUTTONS, get_text
 
 logger = logging.getLogger(__name__)
@@ -39,12 +42,14 @@ router = Router()
 class RegState(StatesGroup):
     """Registration states for FSM."""
     LanguageSelect = State()
-    Surname = State()
-    Name = State()
-    Grade = State()
+    ParentName = State()      # NEW: Parent/Guardian name
+    Email = State()           # NEW: Contact email
+    Surname = State()         # Participant's surname
+    Name = State()            # Participant's name
+    Grade = State()           # Grades 1-8 only
     School = State()
     Phone = State()
-    Payment = State()
+    Payment = State()         # Show Payme link
     ScreenshotProof = State()
 
 
@@ -78,16 +83,38 @@ def create_cancel_keyboard(lang: str) -> ReplyKeyboardMarkup:
     )
 
 
+def create_payment_keyboard(lang: str, payme_url: str) -> InlineKeyboardMarkup:
+    """Create inline keyboard with Payme link and 'I paid' button."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=get_text("payment_button", lang), url=payme_url)],
+            [InlineKeyboardButton(text=get_text("payment_done_button", lang), callback_data="payment_done")],
+        ]
+    )
+
+
+def create_register_another_keyboard(lang: str) -> ReplyKeyboardMarkup:
+    """Create reply keyboard with 'Register another' button."""
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text=get_text("register_another", lang))]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
 def validate_name(text: str) -> bool:
-    """Validate that text contains only letters and spaces."""
-    # Allow letters from various alphabets (Latin, Cyrillic, etc.) and spaces
-    pattern = r'^[\p{L}\s\-\']+$'
-    # Simplified pattern for common cases
+    """Validate that text contains only letters, spaces, hyphens, and apostrophes."""
     return bool(re.match(r'^[a-zA-Zа-яА-ЯёЁўЎқҚғҒҳҲ\s\-\']+$', text.strip()))
 
 
+def validate_email(email: str) -> bool:
+    """Validate email format (basic validation)."""
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return bool(re.match(pattern, email.strip()))
+
+
 def validate_grade(text: str) -> tuple[bool, int]:
-    """Validate that grade is a number within range."""
+    """Validate that grade is a number within range 1-8."""
     try:
         grade = int(text.strip())
         if MIN_GRADE <= grade <= MAX_GRADE:
@@ -95,6 +122,70 @@ def validate_grade(text: str) -> tuple[bool, int]:
         return False, 0
     except ValueError:
         return False, 0
+
+
+def transliterate_to_latin(text: str) -> str:
+    """Transliterate Cyrillic text to Latin for Payme URL."""
+    cyrillic_to_latin = {
+        'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo',
+        'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+        'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+        'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch',
+        'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
+        'ў': 'o', 'қ': 'q', 'ғ': 'g', 'ҳ': 'h',
+        'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Е': 'E', 'Ё': 'Yo',
+        'Ж': 'Zh', 'З': 'Z', 'И': 'I', 'Й': 'Y', 'К': 'K', 'Л': 'L', 'М': 'M',
+        'Н': 'N', 'О': 'O', 'П': 'P', 'Р': 'R', 'С': 'S', 'Т': 'T', 'У': 'U',
+        'Ф': 'F', 'Х': 'Kh', 'Ц': 'Ts', 'Ч': 'Ch', 'Ш': 'Sh', 'Щ': 'Shch',
+        'Ъ': '', 'Ы': 'Y', 'Ь': '', 'Э': 'E', 'Ю': 'Yu', 'Я': 'Ya',
+        'Ў': 'O', 'Қ': 'Q', 'Ғ': 'G', 'Ҳ': 'H',
+    }
+    result = ''
+    for char in text:
+        result += cyrillic_to_latin.get(char, char)
+    return result
+
+
+def generate_payme_link(
+    merchant_id: str,
+    amount: int,
+    user_id: int,
+    student_name: str,
+    grade: int,
+) -> str:
+    """
+    Generate Payme checkout URL with embedded parameters.
+    
+    Args:
+        merchant_id: Payme Merchant ID
+        amount: Amount in tiyins
+        user_id: Telegram user ID
+        student_name: Student's full name (surname + name)
+        grade: Student's grade
+        
+    Returns:
+        Payme checkout URL
+    """
+    # Transliterate to avoid encoding issues
+    student_latin = transliterate_to_latin(student_name)
+    
+    # Build parameters string
+    # Format: m={merchant_id};ac.user_id={user_id};ac.student={student};ac.grade={grade};a={amount}
+    params = f"m={merchant_id};ac.user_id={user_id};ac.student={student_latin};ac.grade={grade};a={amount}"
+    
+    # Encode to Base64
+    encoded_params = base64.b64encode(params.encode('utf-8')).decode('utf-8')
+    
+    # Build URL
+    payme_url = f"https://checkout.paycom.uz/{encoded_params}"
+    
+    return payme_url
+
+
+def is_cancel_text(text: str) -> bool:
+    """Check if text is a cancel command."""
+    cancel_texts = [get_text("cancel", "ru"), get_text("cancel", "uz"), get_text("cancel", "en")]
+    return text.strip() in cancel_texts
 
 
 # ==================== Command Handlers ====================
@@ -107,19 +198,10 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
     
     logger.info(f"[{user_id}] [{username}] - Started registration (/start)")
     
-    # Check if user already registered
-    if await DatabaseManager.user_exists(user_id):
-        # Get user's language preference
-        user = await DatabaseManager.get_user_by_telegram_id(user_id)
-        lang = user.language.value if user else "en"
-        await message.answer(get_text("already_registered", lang))
-        await state.clear()
-        return
-    
     # Clear any existing state and start fresh
     await state.clear()
     
-    # Show language selection
+    # Show language selection (allow multiple registrations, so no check for existing user)
     await message.answer(
         get_text("choose_language", "en"),
         reply_markup=create_language_keyboard(),
@@ -128,15 +210,13 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
 
 
 @router.message(Command("cancel"))
-@router.message(F.text.in_([get_text("cancel", "ru"), get_text("cancel", "uz"), get_text("cancel", "en")]))
 async def cmd_cancel(message: Message, state: FSMContext) -> None:
-    """Handle /cancel command or cancel button."""
+    """Handle /cancel command."""
     user_id = message.from_user.id
     username = message.from_user.username or "N/A"
     
     logger.info(f"[{user_id}] [{username}] - Cancelled registration")
     
-    # Get user's language from state data
     data = await state.get_data()
     lang = data.get("language", "en")
     
@@ -155,11 +235,23 @@ async def cmd_help(message: Message, state: FSMContext) -> None:
     
     logger.info(f"[{user_id}] [{username}] - Requested help (/help)")
     
-    # Get user's language from state data or default
     data = await state.get_data()
     lang = data.get("language", "en")
     
     await message.answer(get_text("help", lang))
+
+
+@router.message(Command("myid"))
+async def cmd_myid(message: Message, state: FSMContext) -> None:
+    """Handle /myid command - show user's Telegram ID."""
+    user_id = message.from_user.id
+    data = await state.get_data()
+    lang = data.get("language", "en")
+    
+    await message.answer(
+        get_text("your_id", lang, user_id=user_id),
+        parse_mode="Markdown"
+    )
 
 
 @router.message(Command("export"))
@@ -170,7 +262,6 @@ async def cmd_export(message: Message) -> None:
     
     logger.info(f"[{user_id}] [{username}] - Attempted export command")
     
-    # Check admin access
     if user_id not in ADMIN_IDS:
         logger.warning(f"[{user_id}] [{username}] - Access denied for /export")
         await message.answer(get_text("admin_access_denied", "en"))
@@ -179,7 +270,6 @@ async def cmd_export(message: Message) -> None:
     logger.info(f"[{user_id}] [{username}] - Admin export started")
     
     try:
-        # Fetch all users using Pandas
         async with engine.connect() as conn:
             df = await conn.run_sync(
                 lambda sync_conn: pd.read_sql("SELECT * FROM users", sync_conn)
@@ -189,17 +279,14 @@ async def cmd_export(message: Message) -> None:
             await message.answer(get_text("admin_export_empty", "en"))
             return
         
-        # Generate Excel file
         excel_buffer = io.BytesIO()
         with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
             df.to_excel(writer, index=False, sheet_name='Registrations')
         excel_buffer.seek(0)
         
-        # Create filename with timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"olympiad_registrations_{timestamp}.xlsx"
         
-        # Send file
         document = BufferedInputFile(
             file=excel_buffer.read(),
             filename=filename,
@@ -229,24 +316,79 @@ async def process_language_selection(callback: CallbackQuery, state: FSMContext)
     
     logger.info(f"[{user_id}] [{username}] - Selected language: {lang_code}")
     
-    # Validate language code
     if lang_code not in ["ru", "uz", "en"]:
         lang_code = "en"
     
-    # Save language to state
     await state.update_data(language=lang_code)
-    
-    # Acknowledge callback
     await callback.answer()
     
-    # Send confirmation and welcome
     await callback.message.edit_text(get_text("language_selected", lang_code))
     await callback.message.answer(get_text("welcome", lang_code))
     
-    # Ask for surname
+    # Ask for parent name first
     await callback.message.answer(
-        get_text("ask_surname", lang_code),
+        get_text("ask_parent_name", lang_code),
         reply_markup=create_cancel_keyboard(lang_code),
+    )
+    await state.set_state(RegState.ParentName)
+
+
+# ==================== Parent Name Handler ====================
+
+@router.message(StateFilter(RegState.ParentName), F.text)
+async def process_parent_name(message: Message, state: FSMContext) -> None:
+    """Process parent name input."""
+    user_id = message.from_user.id
+    username = message.from_user.username or "N/A"
+    data = await state.get_data()
+    lang = data.get("language", "en")
+    
+    parent_name = message.text.strip()
+    
+    if is_cancel_text(parent_name):
+        return await cmd_cancel(message, state)
+    
+    logger.info(f"[{user_id}] [{username}] - Entered parent name: {parent_name}")
+    
+    if not validate_name(parent_name) or len(parent_name) < 2:
+        logger.warning(f"[{user_id}] [{username}] - Invalid parent name: {parent_name}")
+        await message.answer(get_text("invalid_parent_name", lang))
+        return
+    
+    await state.update_data(parent_name=parent_name)
+    await message.answer(
+        get_text("ask_email", lang),
+        reply_markup=create_cancel_keyboard(lang),
+    )
+    await state.set_state(RegState.Email)
+
+
+# ==================== Email Handler ====================
+
+@router.message(StateFilter(RegState.Email), F.text)
+async def process_email(message: Message, state: FSMContext) -> None:
+    """Process email input."""
+    user_id = message.from_user.id
+    username = message.from_user.username or "N/A"
+    data = await state.get_data()
+    lang = data.get("language", "en")
+    
+    email = message.text.strip()
+    
+    if is_cancel_text(email):
+        return await cmd_cancel(message, state)
+    
+    logger.info(f"[{user_id}] [{username}] - Entered email: {email}")
+    
+    if not validate_email(email):
+        logger.warning(f"[{user_id}] [{username}] - Invalid email: {email}")
+        await message.answer(get_text("invalid_email", lang))
+        return
+    
+    await state.update_data(email=email)
+    await message.answer(
+        get_text("ask_surname", lang),
+        reply_markup=create_cancel_keyboard(lang),
     )
     await state.set_state(RegState.Surname)
 
@@ -255,7 +397,7 @@ async def process_language_selection(callback: CallbackQuery, state: FSMContext)
 
 @router.message(StateFilter(RegState.Surname), F.text)
 async def process_surname(message: Message, state: FSMContext) -> None:
-    """Process surname input."""
+    """Process participant's surname input."""
     user_id = message.from_user.id
     username = message.from_user.username or "N/A"
     data = await state.get_data()
@@ -263,19 +405,16 @@ async def process_surname(message: Message, state: FSMContext) -> None:
     
     surname = message.text.strip()
     
-    # Check for cancel
-    if surname in [get_text("cancel", "ru"), get_text("cancel", "uz"), get_text("cancel", "en")]:
+    if is_cancel_text(surname):
         return await cmd_cancel(message, state)
     
     logger.info(f"[{user_id}] [{username}] - Entered surname: {surname}")
     
-    # Validate surname
     if not validate_name(surname) or len(surname) < 2:
         logger.warning(f"[{user_id}] [{username}] - Invalid surname: {surname}")
         await message.answer(get_text("invalid_surname", lang))
         return
     
-    # Save surname and ask for name
     await state.update_data(surname=surname)
     await message.answer(
         get_text("ask_name", lang),
@@ -288,7 +427,7 @@ async def process_surname(message: Message, state: FSMContext) -> None:
 
 @router.message(StateFilter(RegState.Name), F.text)
 async def process_name(message: Message, state: FSMContext) -> None:
-    """Process name input."""
+    """Process participant's name input."""
     user_id = message.from_user.id
     username = message.from_user.username or "N/A"
     data = await state.get_data()
@@ -296,19 +435,16 @@ async def process_name(message: Message, state: FSMContext) -> None:
     
     name = message.text.strip()
     
-    # Check for cancel
-    if name in [get_text("cancel", "ru"), get_text("cancel", "uz"), get_text("cancel", "en")]:
+    if is_cancel_text(name):
         return await cmd_cancel(message, state)
     
     logger.info(f"[{user_id}] [{username}] - Entered name: {name}")
     
-    # Validate name
     if not validate_name(name) or len(name) < 2:
         logger.warning(f"[{user_id}] [{username}] - Invalid name: {name}")
         await message.answer(get_text("invalid_name", lang))
         return
     
-    # Save name and ask for grade
     await state.update_data(name=name)
     await message.answer(
         get_text("ask_grade", lang),
@@ -321,7 +457,7 @@ async def process_name(message: Message, state: FSMContext) -> None:
 
 @router.message(StateFilter(RegState.Grade), F.text)
 async def process_grade(message: Message, state: FSMContext) -> None:
-    """Process grade input."""
+    """Process grade input (1-8 only)."""
     user_id = message.from_user.id
     username = message.from_user.username or "N/A"
     data = await state.get_data()
@@ -329,20 +465,17 @@ async def process_grade(message: Message, state: FSMContext) -> None:
     
     grade_text = message.text.strip()
     
-    # Check for cancel
-    if grade_text in [get_text("cancel", "ru"), get_text("cancel", "uz"), get_text("cancel", "en")]:
+    if is_cancel_text(grade_text):
         return await cmd_cancel(message, state)
     
     logger.info(f"[{user_id}] [{username}] - Entered grade: {grade_text}")
     
-    # Validate grade
     is_valid, grade = validate_grade(grade_text)
     if not is_valid:
         logger.warning(f"[{user_id}] [{username}] - Invalid grade: {grade_text}")
         await message.answer(get_text("invalid_grade", lang))
         return
     
-    # Save grade and ask for school
     await state.update_data(grade=grade)
     await message.answer(
         get_text("ask_school", lang),
@@ -363,19 +496,16 @@ async def process_school(message: Message, state: FSMContext) -> None:
     
     school = message.text.strip()
     
-    # Check for cancel
-    if school in [get_text("cancel", "ru"), get_text("cancel", "uz"), get_text("cancel", "en")]:
+    if is_cancel_text(school):
         return await cmd_cancel(message, state)
     
     logger.info(f"[{user_id}] [{username}] - Entered school: {school}")
     
-    # Validate school
     if not school or len(school) < 2:
         logger.warning(f"[{user_id}] [{username}] - Invalid school: {school}")
         await message.answer(get_text("invalid_school", lang))
         return
     
-    # Save school and ask for phone
     await state.update_data(school=school)
     await message.answer(
         get_text("ask_phone", lang),
@@ -387,7 +517,7 @@ async def process_school(message: Message, state: FSMContext) -> None:
 # ==================== Phone Handler ====================
 
 @router.message(StateFilter(RegState.Phone), F.contact)
-async def process_phone_contact(message: Message, state: FSMContext, bot: Bot) -> None:
+async def process_phone_contact(message: Message, state: FSMContext) -> None:
     """Process phone contact."""
     user_id = message.from_user.id
     username = message.from_user.username or "N/A"
@@ -398,27 +528,24 @@ async def process_phone_contact(message: Message, state: FSMContext, bot: Bot) -
     
     logger.info(f"[{user_id}] [{username}] - Shared phone: {phone}")
     
-    # Save phone
     await state.update_data(phone=phone)
     
-    # Remove keyboard and send payment info
-    await message.answer(
-        get_text("payment_info", lang),
-        reply_markup=ReplyKeyboardRemove(),
+    # Generate Payme link
+    student_name = f"{data.get('surname', '')} {data.get('name', '')}"
+    payme_url = generate_payme_link(
+        merchant_id=PAYME_MERCHANT_ID,
+        amount=OLYMPIAD_PRICE,
+        user_id=user_id,
+        student_name=student_name,
+        grade=data.get('grade', 0),
     )
     
-    # Send invoice
-    await bot.send_invoice(
-        chat_id=message.chat.id,
-        title=get_text("payment_title", lang),
-        description=get_text("payment_description", lang),
-        payload=f"olympiad_registration_{user_id}",
-        provider_token=PAYMENT_PROVIDER_TOKEN,
-        currency=OLYMPIAD_CURRENCY,
-        prices=[
-            LabeledPrice(label=get_text("payment_title", lang), amount=OLYMPIAD_PRICE)
-        ],
-        start_parameter="olympiad-registration",
+    # Format amount for display (tiyins to sum)
+    amount_display = OLYMPIAD_PRICE // 100
+    
+    await message.answer(
+        get_text("payment_info", lang, amount=amount_display),
+        reply_markup=create_payment_keyboard(lang, payme_url),
     )
     
     await state.set_state(RegState.Payment)
@@ -430,8 +557,7 @@ async def process_phone_text(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     lang = data.get("language", "en")
     
-    # Check for cancel
-    if message.text.strip() in [get_text("cancel", "ru"), get_text("cancel", "uz"), get_text("cancel", "en")]:
+    if is_cancel_text(message.text.strip()):
         return await cmd_cancel(message, state)
     
     await message.answer(
@@ -440,38 +566,23 @@ async def process_phone_text(message: Message, state: FSMContext) -> None:
     )
 
 
-# ==================== Payment Handlers ====================
+# ==================== Payment Handler ====================
 
-@router.pre_checkout_query()
-async def process_pre_checkout(pre_checkout_query: PreCheckoutQuery) -> None:
-    """Process pre-checkout query - confirm payment."""
-    user_id = pre_checkout_query.from_user.id
-    username = pre_checkout_query.from_user.username or "N/A"
-    
-    logger.info(f"[{user_id}] [{username}] - Pre-checkout query received")
-    
-    # Always confirm pre-checkout
-    await pre_checkout_query.answer(ok=True)
-
-
-@router.message(F.successful_payment)
-async def process_successful_payment(message: Message, state: FSMContext) -> None:
-    """Process successful payment."""
-    user_id = message.from_user.id
-    username = message.from_user.username or "N/A"
+@router.callback_query(StateFilter(RegState.Payment), F.data == "payment_done")
+async def process_payment_done(callback: CallbackQuery, state: FSMContext) -> None:
+    """Handle 'I have paid' button click."""
+    user_id = callback.from_user.id
+    username = callback.from_user.username or "N/A"
     data = await state.get_data()
     lang = data.get("language", "en")
     
-    logger.info(f"[{user_id}] [{username}] - Payment successful: {message.successful_payment.total_amount} {message.successful_payment.currency}")
+    logger.info(f"[{user_id}] [{username}] - Clicked 'I have paid'")
     
-    # Update state with payment info
-    await state.update_data(payment_status=True)
-    
-    # Send success message
-    await message.answer(get_text("payment_success", lang))
-    
-    # Ask for screenshot
-    await message.answer(get_text("ask_screenshot", lang))
+    await callback.answer()
+    await callback.message.answer(
+        get_text("ask_screenshot", lang),
+        reply_markup=ReplyKeyboardRemove(),
+    )
     await state.set_state(RegState.ScreenshotProof)
 
 
@@ -479,34 +590,29 @@ async def process_successful_payment(message: Message, state: FSMContext) -> Non
 
 @router.message(StateFilter(RegState.ScreenshotProof), F.photo)
 async def process_screenshot(message: Message, state: FSMContext) -> None:
-    """Process screenshot upload."""
+    """Process screenshot upload and complete registration."""
     user_id = message.from_user.id
     username = message.from_user.username or "N/A"
     data = await state.get_data()
     lang = data.get("language", "en")
     
-    # Get the largest photo
     photo = message.photo[-1]
     file_id = photo.file_id
     
     logger.info(f"[{user_id}] [{username}] - Uploaded screenshot: {file_id}")
     
-    # Save screenshot file ID
-    await state.update_data(screenshot_file_id=file_id)
-    
-    # Get all data and save to database
-    final_data = await state.get_data()
-    
     try:
-        # Create user in database
+        # Create registration in database
         user = await DatabaseManager.create_user(
             telegram_id=user_id,
             username=username if username != "N/A" else None,
-            surname=final_data["surname"],
-            name=final_data["name"],
-            grade=final_data["grade"],
-            school=final_data["school"],
-            phone=final_data["phone"],
+            parent_name=data["parent_name"],
+            email=data["email"],
+            phone=data["phone"],
+            surname=data["surname"],
+            name=data["name"],
+            grade=data["grade"],
+            school=data["school"],
             language=LanguageEnum(lang),
             payment_status=True,
             screenshot_file_id=file_id,
@@ -519,17 +625,25 @@ async def process_screenshot(message: Message, state: FSMContext) -> None:
             get_text(
                 "registration_complete",
                 lang,
-                surname=final_data["surname"],
-                name=final_data["name"],
-                grade=final_data["grade"],
-                school=final_data["school"],
-                phone=final_data["phone"],
+                surname=data["surname"],
+                name=data["name"],
+                grade=data["grade"],
+                school=data["school"],
+                parent_name=data["parent_name"],
+                email=data["email"],
+                phone=data["phone"],
             ),
-            reply_markup=ReplyKeyboardRemove(),
         )
         
-        # Clear state
+        # Show "Register another" button
+        await message.answer(
+            get_text("register_another_prompt", lang),
+            reply_markup=create_register_another_keyboard(lang),
+        )
+        
+        # Clear state but keep language for convenience
         await state.clear()
+        await state.update_data(language=lang)
         
     except Exception as e:
         logger.error(f"[{user_id}] [{username}] - Database error: {e}")
@@ -547,6 +661,35 @@ async def process_invalid_screenshot(message: Message, state: FSMContext) -> Non
     await message.answer(get_text("invalid_screenshot", lang))
 
 
+# ==================== Register Another Handler ====================
+
+@router.message(F.text.in_([
+    get_text("register_another", "ru"),
+    get_text("register_another", "uz"),
+    get_text("register_another", "en"),
+]))
+async def process_register_another(message: Message, state: FSMContext) -> None:
+    """Handle 'Register another' button click."""
+    user_id = message.from_user.id
+    username = message.from_user.username or "N/A"
+    data = await state.get_data()
+    lang = data.get("language", "en")
+    
+    logger.info(f"[{user_id}] [{username}] - Starting another registration")
+    
+    # Clear state and restart
+    await state.clear()
+    await state.update_data(language=lang)
+    
+    # Skip language selection, go directly to parent name
+    await message.answer(get_text("welcome", lang))
+    await message.answer(
+        get_text("ask_parent_name", lang),
+        reply_markup=create_cancel_keyboard(lang),
+    )
+    await state.set_state(RegState.ParentName)
+
+
 # ==================== Fallback Handler ====================
 
 @router.message()
@@ -557,11 +700,9 @@ async def handle_unknown(message: Message, state: FSMContext) -> None:
     
     logger.info(f"[{user_id}] [{username}] - Unknown message: {message.text or message.content_type}")
     
-    # Get current state
     current_state = await state.get_state()
     
     if current_state is None:
-        # No active state, suggest /start
         data = await state.get_data()
         lang = data.get("language", "en")
         await message.answer(get_text("help", lang))

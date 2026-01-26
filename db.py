@@ -27,18 +27,30 @@ class Base(DeclarativeBase):
 
 
 class User(Base):
-    """User model for storing registration data."""
+    """User model for storing registration data.
+    
+    NOTE: telegram_id is NOT unique - one parent can register multiple children.
+    """
     
     __tablename__ = "users"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False, index=True)
+    # REMOVED unique=True to allow multiple registrations per Telegram account
+    telegram_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
     username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    surname: Mapped[str] = mapped_column(String(255), nullable=False)
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    grade: Mapped[int] = mapped_column(Integer, nullable=False)
-    school: Mapped[str] = mapped_column(String(500), nullable=False)
+    
+    # Parent/Guardian info
+    parent_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
     phone: Mapped[str] = mapped_column(String(50), nullable=False)
+    
+    # Participant (child) info
+    surname: Mapped[str] = mapped_column(String(255), nullable=False)  # Participant's surname
+    name: Mapped[str] = mapped_column(String(255), nullable=False)      # Participant's name
+    grade: Mapped[int] = mapped_column(Integer, nullable=False)         # Grades 1-8 only
+    school: Mapped[str] = mapped_column(String(500), nullable=False)
+    
+    # System fields
     language: Mapped[LanguageEnum] = mapped_column(
         Enum(LanguageEnum, native_enum=False, length=10),
         nullable=False,
@@ -53,7 +65,7 @@ class User(Base):
     )
     
     def __repr__(self) -> str:
-        return f"<User(id={self.id}, telegram_id={self.telegram_id}, name={self.name} {self.surname})>"
+        return f"<User(id={self.id}, telegram_id={self.telegram_id}, participant={self.name} {self.surname})>"
 
 
 # Database engine and session factory
@@ -89,25 +101,32 @@ class DatabaseManager:
     async def create_user(
         telegram_id: int,
         username: Optional[str],
+        parent_name: str,
+        email: str,
+        phone: str,
         surname: str,
         name: str,
         grade: int,
         school: str,
-        phone: str,
         language: LanguageEnum,
         payment_status: bool = False,
         screenshot_file_id: Optional[str] = None,
     ) -> User:
-        """Create a new user in the database."""
+        """Create a new user/registration in the database.
+        
+        NOTE: Multiple registrations with the same telegram_id are allowed.
+        """
         async with async_session() as session:
             user = User(
                 telegram_id=telegram_id,
                 username=username,
+                parent_name=parent_name,
+                email=email,
+                phone=phone,
                 surname=surname,
                 name=name,
                 grade=grade,
                 school=school,
-                phone=phone,
                 language=language,
                 payment_status=payment_status,
                 screenshot_file_id=screenshot_file_id,
@@ -118,44 +137,41 @@ class DatabaseManager:
             return user
     
     @staticmethod
-    async def get_user_by_telegram_id(telegram_id: int) -> Optional[User]:
-        """Get user by Telegram ID."""
+    async def get_registrations_by_telegram_id(telegram_id: int) -> list[User]:
+        """Get all registrations by Telegram ID."""
         from sqlalchemy import select
         
         async with async_session() as session:
             result = await session.execute(
-                select(User).where(User.telegram_id == telegram_id)
+                select(User).where(User.telegram_id == telegram_id).order_by(User.created_at.desc())
+            )
+            return list(result.scalars().all())
+    
+    @staticmethod
+    async def get_registration_by_id(registration_id: int) -> Optional[User]:
+        """Get registration by database ID."""
+        from sqlalchemy import select
+        
+        async with async_session() as session:
+            result = await session.execute(
+                select(User).where(User.id == registration_id)
             )
             return result.scalar_one_or_none()
     
     @staticmethod
-    async def update_user_payment(telegram_id: int, payment_status: bool) -> Optional[User]:
-        """Update user payment status."""
+    async def update_registration_payment(registration_id: int, payment_status: bool, screenshot_file_id: Optional[str] = None) -> Optional[User]:
+        """Update registration payment status and screenshot."""
         from sqlalchemy import select
         
         async with async_session() as session:
             result = await session.execute(
-                select(User).where(User.telegram_id == telegram_id)
+                select(User).where(User.id == registration_id)
             )
             user = result.scalar_one_or_none()
             if user:
                 user.payment_status = payment_status
-                await session.commit()
-                await session.refresh(user)
-            return user
-    
-    @staticmethod
-    async def update_user_screenshot(telegram_id: int, screenshot_file_id: str) -> Optional[User]:
-        """Update user screenshot file ID."""
-        from sqlalchemy import select
-        
-        async with async_session() as session:
-            result = await session.execute(
-                select(User).where(User.telegram_id == telegram_id)
-            )
-            user = result.scalar_one_or_none()
-            if user:
-                user.screenshot_file_id = screenshot_file_id
+                if screenshot_file_id:
+                    user.screenshot_file_id = screenshot_file_id
                 await session.commit()
                 await session.refresh(user)
             return user
@@ -170,7 +186,12 @@ class DatabaseManager:
             return list(result.scalars().all())
     
     @staticmethod
-    async def user_exists(telegram_id: int) -> bool:
-        """Check if user already exists."""
-        user = await DatabaseManager.get_user_by_telegram_id(telegram_id)
-        return user is not None
+    async def get_registration_count_by_telegram_id(telegram_id: int) -> int:
+        """Get count of registrations for a Telegram ID."""
+        from sqlalchemy import select, func
+        
+        async with async_session() as session:
+            result = await session.execute(
+                select(func.count(User.id)).where(User.telegram_id == telegram_id)
+            )
+            return result.scalar() or 0

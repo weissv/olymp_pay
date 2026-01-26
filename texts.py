@@ -19,23 +19,40 @@ TEXTS: dict[str, dict[str, str]] = {
     
     # Welcome message
     "welcome": {
-        "ru": "🎓 Добро пожаловать в бот регистрации на Олимпиаду!\n\nДавайте начнём процесс регистрации.",
-        "uz": "🎓 Olimpiadaga ro'yxatdan o'tish botiga xush kelibsiz!\n\nRo'yxatdan o'tish jarayonini boshlaymiz.",
-        "en": "🎓 Welcome to the Olympiad Registration Bot!\n\nLet's start the registration process.",
+        "ru": "🎓 Добро пожаловать в бот регистрации на Олимпиаду!\n\nВы можете зарегистрировать одного или нескольких участников.\n\nДавайте начнём процесс регистрации.",
+        "uz": "🎓 Olimpiadaga ro'yxatdan o'tish botiga xush kelibsiz!\n\nSiz bir yoki bir nechta ishtirokchini ro'yxatdan o'tkazishingiz mumkin.\n\nRo'yxatdan o'tish jarayonini boshlaymiz.",
+        "en": "🎓 Welcome to the Olympiad Registration Bot!\n\nYou can register one or more participants.\n\nLet's start the registration process.",
     },
     
-    # Already registered
-    "already_registered": {
-        "ru": "⚠️ Вы уже зарегистрированы на Олимпиаду!\n\nЕсли у вас есть вопросы, обратитесь к администратору.",
-        "uz": "⚠️ Siz allaqachon Olimpiadaga ro'yxatdan o'tgansiz!\n\nSavollaringiz bo'lsa, administratorga murojaat qiling.",
-        "en": "⚠️ You are already registered for the Olympiad!\n\nIf you have any questions, please contact the administrator.",
+    # Parent Name
+    "ask_parent_name": {
+        "ru": "👤 Введите ФИО родителя/опекуна:",
+        "uz": "👤 Ota-ona/vasiy FIOsini kiriting:",
+        "en": "👤 Enter parent/guardian's full name:",
+    },
+    "invalid_parent_name": {
+        "ru": "❌ ФИО должно содержать только буквы и пробелы. Попробуйте ещё раз:",
+        "uz": "❌ FIO faqat harflar va bo'shliqlardan iborat bo'lishi kerak. Qaytadan urinib ko'ring:",
+        "en": "❌ Name must contain only letters and spaces. Please try again:",
     },
     
-    # Surname
+    # Email
+    "ask_email": {
+        "ru": "📧 Введите ваш Email для связи:",
+        "uz": "📧 Aloqa uchun Email manzilingizni kiriting:",
+        "en": "📧 Enter your contact Email:",
+    },
+    "invalid_email": {
+        "ru": "❌ Неверный формат Email. Пример: example@mail.com\nПопробуйте ещё раз:",
+        "uz": "❌ Email formati noto'g'ri. Misol: example@mail.com\nQaytadan urinib ko'ring:",
+        "en": "❌ Invalid Email format. Example: example@mail.com\nPlease try again:",
+    },
+    
+    # Participant Surname
     "ask_surname": {
-        "ru": "📝 Введите вашу фамилию:",
-        "uz": "📝 Familiyangizni kiriting:",
-        "en": "📝 Enter your surname:",
+        "ru": "📝 Введите фамилию участника:",
+        "uz": "📝 Ishtirokchi familiyasini kiriting:",
+        "en": "📝 Enter participant's surname:",
     },
     "invalid_surname": {
         "ru": "❌ Фамилия должна содержать только буквы. Попробуйте ещё раз:",
@@ -43,11 +60,11 @@ TEXTS: dict[str, dict[str, str]] = {
         "en": "❌ Surname must contain only letters. Please try again:",
     },
     
-    # Name
+    # Participant Name
     "ask_name": {
-        "ru": "📝 Введите ваше имя:",
-        "uz": "📝 Ismingizni kiriting:",
-        "en": "📝 Enter your first name:",
+        "ru": "📝 Введите имя участника:",
+        "uz": "📝 Ishtirokchi ismini kiriting:",
+        "en": "📝 Enter participant's first name:",
     },
     "invalid_name": {
         "ru": "❌ Имя должно содержать только буквы. Попробуйте ещё раз:",
@@ -55,23 +72,23 @@ TEXTS: dict[str, dict[str, str]] = {
         "en": "❌ Name must contain only letters. Please try again:",
     },
     
-    # Grade
+    # Grade (1-8 only)
     "ask_grade": {
-        "ru": "🎒 Введите ваш класс (1-11):",
-        "uz": "🎒 Sinfingizni kiriting (1-11):",
-        "en": "🎒 Enter your grade (1-11):",
+        "ru": "🎒 Введите класс участника (1-8):",
+        "uz": "🎒 Ishtirokchi sinfini kiriting (1-8):",
+        "en": "🎒 Enter participant's grade (1-8):",
     },
     "invalid_grade": {
-        "ru": "❌ Класс должен быть числом от 1 до 11. Попробуйте ещё раз:",
-        "uz": "❌ Sinf 1 dan 11 gacha bo'lgan raqam bo'lishi kerak. Qaytadan urinib ko'ring:",
-        "en": "❌ Grade must be a number from 1 to 11. Please try again:",
+        "ru": "❌ Класс должен быть числом от 1 до 8. Олимпиада проводится только для 1-8 классов.\nПопробуйте ещё раз:",
+        "uz": "❌ Sinf 1 dan 8 gacha bo'lgan raqam bo'lishi kerak. Olimpiada faqat 1-8 sinflar uchun o'tkaziladi.\nQaytadan urinib ko'ring:",
+        "en": "❌ Grade must be a number from 1 to 8. The Olympiad is only for grades 1-8.\nPlease try again:",
     },
     
     # School
     "ask_school": {
-        "ru": "🏫 Введите название вашей школы:",
-        "uz": "🏫 Maktabingiz nomini kiriting:",
-        "en": "🏫 Enter your school name:",
+        "ru": "🏫 Введите название школы участника:",
+        "uz": "🏫 Ishtirokchi maktabining nomini kiriting:",
+        "en": "🏫 Enter participant's school name:",
     },
     "invalid_school": {
         "ru": "❌ Название школы не может быть пустым. Попробуйте ещё раз:",
@@ -98,36 +115,26 @@ TEXTS: dict[str, dict[str, str]] = {
     
     # Payment
     "payment_info": {
-        "ru": "💳 Для завершения регистрации необходимо оплатить участие в Олимпиаде.\n\nНажмите кнопку ниже для оплаты через Payme.",
-        "uz": "💳 Ro'yxatdan o'tishni yakunlash uchun Olimpiada ishtirok haqini to'lashingiz kerak.\n\nPayme orqali to'lash uchun quyidagi tugmani bosing.",
-        "en": "💳 To complete registration, you need to pay the Olympiad participation fee.\n\nPress the button below to pay via Payme.",
+        "ru": "💳 Для завершения регистрации необходимо оплатить участие в Олимпиаде.\n\n💰 Сумма: {amount} сум\n\n👇 Нажмите кнопку ниже для оплаты через Payme.\n\n⚠️ После оплаты обязательно нажмите \"Я оплатил\" и отправьте скриншот чека.",
+        "uz": "💳 Ro'yxatdan o'tishni yakunlash uchun Olimpiada ishtirok haqini to'lashingiz kerak.\n\n💰 Summa: {amount} so'm\n\n👇 Payme orqali to'lash uchun quyidagi tugmani bosing.\n\n⚠️ To'lovdan so'ng \"Men to'ladim\" tugmasini bosing va chek skrinshotini yuboring.",
+        "en": "💳 To complete registration, you need to pay the Olympiad participation fee.\n\n💰 Amount: {amount} UZS\n\n👇 Press the button below to pay via Payme.\n\n⚠️ After payment, click \"I have paid\" and send a screenshot of the receipt.",
     },
-    "payment_title": {
-        "ru": "Регистрация на Олимпиаду",
-        "uz": "Olimpiadaga ro'yxatdan o'tish",
-        "en": "Olympiad Registration",
+    "payment_button": {
+        "ru": "💸 Оплатить через Payme",
+        "uz": "💸 Payme orqali to'lash",
+        "en": "💸 Pay via Payme",
     },
-    "payment_description": {
-        "ru": "Оплата участия в Олимпиаде",
-        "uz": "Olimpiada ishtirok haqini to'lash",
-        "en": "Olympiad Participation Fee Payment",
-    },
-    "payment_success": {
-        "ru": "✅ Оплата успешно получена! Спасибо!",
-        "uz": "✅ To'lov muvaffaqiyatli qabul qilindi! Rahmat!",
-        "en": "✅ Payment successfully received! Thank you!",
-    },
-    "payment_failed": {
-        "ru": "❌ Оплата не прошла. Пожалуйста, попробуйте ещё раз.",
-        "uz": "❌ To'lov amalga oshmadi. Iltimos, qaytadan urinib ko'ring.",
-        "en": "❌ Payment failed. Please try again.",
+    "payment_done_button": {
+        "ru": "✅ Я оплатил (прикрепить скриншот)",
+        "uz": "✅ Men to'ladim (skrinshot biriktirish)",
+        "en": "✅ I have paid (attach screenshot)",
     },
     
     # Screenshot
     "ask_screenshot": {
-        "ru": "📸 Теперь отправьте скриншот чека об оплате для подтверждения:",
-        "uz": "📸 Endi tasdiqlash uchun to'lov chekining skrinshotini yuboring:",
-        "en": "📸 Now send a screenshot of the payment receipt for verification:",
+        "ru": "📸 Отлично! Теперь отправьте скриншот чека об оплате для подтверждения:",
+        "uz": "📸 Ajoyib! Endi tasdiqlash uchun to'lov chekining skrinshotini yuboring:",
+        "en": "📸 Great! Now send a screenshot of the payment receipt for verification:",
     },
     "invalid_screenshot": {
         "ru": "❌ Пожалуйста, отправьте изображение (скриншот чека).",
@@ -137,9 +144,21 @@ TEXTS: dict[str, dict[str, str]] = {
     
     # Completion
     "registration_complete": {
-        "ru": "🎉 Поздравляем! Ваша регистрация успешно завершена!\n\n📋 Ваши данные:\n• Фамилия: {surname}\n• Имя: {name}\n• Класс: {grade}\n• Школа: {school}\n• Телефон: {phone}\n\n✅ Оплата подтверждена.\n\nУдачи на Олимпиаде! 🏆",
-        "uz": "🎉 Tabriklaymiz! Ro'yxatdan o'tish muvaffaqiyatli yakunlandi!\n\n📋 Sizning ma'lumotlaringiz:\n• Familiya: {surname}\n• Ism: {name}\n• Sinf: {grade}\n• Maktab: {school}\n• Telefon: {phone}\n\n✅ To'lov tasdiqlandi.\n\nOlimpiadada omad! 🏆",
-        "en": "🎉 Congratulations! Your registration is complete!\n\n📋 Your details:\n• Surname: {surname}\n• Name: {name}\n• Grade: {grade}\n• School: {school}\n• Phone: {phone}\n\n✅ Payment confirmed.\n\nGood luck at the Olympiad! 🏆",
+        "ru": "🎉 Поздравляем! Регистрация успешно завершена!\n\n📋 Данные участника:\n• Фамилия: {surname}\n• Имя: {name}\n• Класс: {grade}\n• Школа: {school}\n\n👤 Родитель: {parent_name}\n📧 Email: {email}\n📱 Телефон: {phone}\n\n✅ Оплата подтверждена.\n\nУдачи на Олимпиаде! 🏆",
+        "uz": "🎉 Tabriklaymiz! Ro'yxatdan o'tish muvaffaqiyatli yakunlandi!\n\n📋 Ishtirokchi ma'lumotlari:\n• Familiya: {surname}\n• Ism: {name}\n• Sinf: {grade}\n• Maktab: {school}\n\n👤 Ota-ona: {parent_name}\n📧 Email: {email}\n📱 Telefon: {phone}\n\n✅ To'lov tasdiqlandi.\n\nOlimpiadada omad! 🏆",
+        "en": "🎉 Congratulations! Registration is complete!\n\n📋 Participant details:\n• Surname: {surname}\n• Name: {name}\n• Grade: {grade}\n• School: {school}\n\n👤 Parent: {parent_name}\n📧 Email: {email}\n📱 Phone: {phone}\n\n✅ Payment confirmed.\n\nGood luck at the Olympiad! 🏆",
+    },
+    
+    # Register another child
+    "register_another": {
+        "ru": "➕ Зарегистрировать ещё одного участника",
+        "uz": "➕ Yana bir ishtirokchini ro'yxatdan o'tkazish",
+        "en": "➕ Register another participant",
+    },
+    "register_another_prompt": {
+        "ru": "Хотите зарегистрировать ещё одного участника?",
+        "uz": "Yana bir ishtirokchini ro'yxatdan o'tkazmoqchimisiz?",
+        "en": "Would you like to register another participant?",
     },
     
     # Admin
@@ -180,9 +199,16 @@ TEXTS: dict[str, dict[str, str]] = {
     
     # Help
     "help": {
-        "ru": "ℹ️ Этот бот предназначен для регистрации на Олимпиаду.\n\nКоманды:\n/start - Начать регистрацию\n/cancel - Отменить регистрацию\n/help - Показать справку",
-        "uz": "ℹ️ Bu bot Olimpiadaga ro'yxatdan o'tish uchun mo'ljallangan.\n\nBuyruqlar:\n/start - Ro'yxatdan o'tishni boshlash\n/cancel - Ro'yxatdan o'tishni bekor qilish\n/help - Yordam ko'rsatish",
-        "en": "ℹ️ This bot is designed for Olympiad registration.\n\nCommands:\n/start - Start registration\n/cancel - Cancel registration\n/help - Show help",
+        "ru": "ℹ️ Этот бот предназначен для регистрации на Олимпиаду.\n\n📌 Вы можете зарегистрировать несколько участников с одного аккаунта.\n\nКоманды:\n/start - Начать регистрацию\n/cancel - Отменить регистрацию\n/help - Показать справку",
+        "uz": "ℹ️ Bu bot Olimpiadaga ro'yxatdan o'tish uchun mo'ljallangan.\n\n📌 Bitta akkauntdan bir nechta ishtirokchini ro'yxatdan o'tkazishingiz mumkin.\n\nBuyruqlar:\n/start - Ro'yxatdan o'tishni boshlash\n/cancel - Ro'yxatdan o'tishni bekor qilish\n/help - Yordam ko'rsatish",
+        "en": "ℹ️ This bot is designed for Olympiad registration.\n\n📌 You can register multiple participants from one account.\n\nCommands:\n/start - Start registration\n/cancel - Cancel registration\n/help - Show help",
+    },
+    
+    # My ID (for admin setup)
+    "your_id": {
+        "ru": "🆔 Ваш Telegram ID: `{user_id}`",
+        "uz": "🆔 Sizning Telegram ID: `{user_id}`",
+        "en": "🆔 Your Telegram ID: `{user_id}`",
     },
 }
 
