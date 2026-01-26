@@ -709,6 +709,9 @@ async def process_screenshot(message: Message, state: FSMContext) -> None:
         
         logger.info(f"[{user_id}] [{username}] - Registration completed, DB ID: {user.id}, charge_id: {user.charge_id}")
         
+        # Escape underscores in charge_id for Markdown
+        escaped_charge_id = user.charge_id.replace("_", "\\_") if user.charge_id else "N/A"
+        
         # Send completion message with charge_id
         await message.answer(
             get_text(
@@ -721,7 +724,7 @@ async def process_screenshot(message: Message, state: FSMContext) -> None:
                 parent_name=data["parent_name"],
                 email=data["email"],
                 phone=data["phone"],
-                charge_id=user.charge_id,
+                charge_id=escaped_charge_id,
             ),
             parse_mode="Markdown",
         )
