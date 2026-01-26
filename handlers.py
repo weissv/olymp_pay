@@ -7,7 +7,6 @@ Refactored to support:
 - Grades 1-8 only
 """
 
-import base64
 import io
 import logging
 import re
@@ -169,15 +168,21 @@ def generate_payme_link(
     # Transliterate to avoid encoding issues
     student_latin = transliterate_to_latin(student_name)
     
-    # Build parameters string
-    # Format: m={merchant_id};ac.user_id={user_id};ac.student={student};ac.grade={grade};a={amount}
-    params = f"m={merchant_id};ac.user_id={user_id};ac.student={student_latin};ac.grade={grade};a={amount}"
+    # Generate unique order ID (timestamp + user_id)
+    import time
+    order_id = f"{int(time.time())}_{user_id}_{grade}"
     
-    # Encode to Base64
-    encoded_params = base64.b64encode(params.encode('utf-8')).decode('utf-8')
-    
-    # Build URL
-    payme_url = f"https://checkout.paycom.uz/{encoded_params}"
+    # Build checkout URL (Payme format - NO base64 encoding)
+    # Format: m={merchant_id};ac.order_id={order_id};ac.user_id={user_id};ac.student={student};ac.grade={grade};a={amount}
+    payme_url = (
+        f"https://checkout.paycom.uz/"
+        f"m={merchant_id};"
+        f"ac.order_id={order_id};"
+        f"ac.user_id={user_id};"
+        f"ac.student={student_latin};"
+        f"ac.grade={grade};"
+        f"a={amount}"
+    )
     
     return payme_url
 
