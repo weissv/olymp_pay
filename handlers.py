@@ -3,11 +3,10 @@ Handlers module with FSM logic for the Olympiad Registration Bot.
 Refactored to support:
 - Multiple registrations per Telegram account
 - Parent name and email fields
-- Payme checkout link with base64 params (fixed amount)
+- Payme payment link
 - Grades 1-8 only
 """
 
-import base64
 import io
 import logging
 import re
@@ -154,33 +153,24 @@ def generate_payme_link(
     grade: int,
 ) -> str:
     """
-    Generate Payme checkout URL with base64-encoded parameters.
+    Generate Payme payment URL.
+    
+    Uses the fallback merchant page since checkout.paycom.uz requires 
+    a business agreement with Payme.
     
     Args:
         merchant_id: Payme Merchant ID
-        amount: Amount in tiyins (fixed, pre-filled)
+        amount: Amount in tiyins
         user_id: Telegram user ID
-        student_name: Student's full name (surname + name)
+        student_name: Student's full name
         grade: Student's grade
         
     Returns:
-        Payme checkout URL with encoded params
+        Payme merchant page URL
     """
-    import time
-    
-    # Generate unique order ID (timestamp + user_id)
-    order_id = f"{int(time.time())}_{user_id}"
-    
-    # Build parameters string for Payme (minimal required params)
-    # Format: m=MERCHANT_ID;ac.order_id=ORDER;a=AMOUNT
-    # Note: only ac.order_id is a standard param, others must be configured in Payme dashboard
-    params = f"m={merchant_id};ac.order_id={order_id};a={amount}"
-    
-    # Encode to base64
-    encoded = base64.b64encode(params.encode('utf-8')).decode('utf-8')
-    
-    # Build checkout URL
-    payme_url = f"https://checkout.paycom.uz/{encoded}"
+    # Use fallback merchant page (P2P-style payment)
+    # This works without checkout API configuration
+    payme_url = f"https://payme.uz/fallback/merchant/?id={merchant_id}"
     
     return payme_url
 
