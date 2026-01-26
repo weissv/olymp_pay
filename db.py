@@ -50,6 +50,9 @@ class User(Base):
     grade: Mapped[int] = mapped_column(Integer, nullable=False)         # Grades 1-8 only
     school: Mapped[str] = mapped_column(String(500), nullable=False)
     
+    # Order ID for Payme (format: {id}_{Surname}_{Name}_{Grade})
+    order_id: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, unique=True, index=True)
+    
     # System fields
     language: Mapped[LanguageEnum] = mapped_column(
         Enum(LanguageEnum, native_enum=False, length=10),
@@ -98,6 +101,41 @@ class DatabaseManager:
     """Manager class for database operations."""
     
     @staticmethod
+    def transliterate_for_order_id(text: str) -> str:
+        """Transliterate Cyrillic to Latin and clean for order_id."""
+        cyrillic_to_latin = {
+            'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo',
+            'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+            'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+            'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch',
+            'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
+            'ў': 'o', 'қ': 'q', 'ғ': 'g', 'ҳ': 'h',
+            'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Е': 'E', 'Ё': 'Yo',
+            'Ж': 'Zh', 'З': 'Z', 'И': 'I', 'Й': 'Y', 'К': 'K', 'Л': 'L', 'М': 'M',
+            'Н': 'N', 'О': 'O', 'П': 'P', 'Р': 'R', 'С': 'S', 'Т': 'T', 'У': 'U',
+            'Ф': 'F', 'Х': 'Kh', 'Ц': 'Ts', 'Ч': 'Ch', 'Ш': 'Sh', 'Щ': 'Shch',
+            'Ъ': '', 'Ы': 'Y', 'Ь': '', 'Э': 'E', 'Ю': 'Yu', 'Я': 'Ya',
+            'Ў': 'O', 'Қ': 'Q', 'Ғ': 'G', 'Ҳ': 'H',
+        }
+        result = ''
+        for char in text:
+            result += cyrillic_to_latin.get(char, char)
+        # Remove spaces and special characters, keep only alphanumeric
+        import re
+        result = re.sub(r'[^a-zA-Z0-9]', '', result)
+        return result
+    
+    @staticmethod
+    def generate_order_id(db_id: int, surname: str, name: str, grade: int) -> str:
+        """Generate order_id in format: {db_id}_{Surname}_{Name}_{Grade}.
+        
+        Example: 12345_Ivanov_Ivan_5
+        """
+        clean_surname = DatabaseManager.transliterate_for_order_id(surname)
+        clean_name = DatabaseManager.transliterate_for_order_id(name)
+        return f"{db_id}_{clean_surname}_{clean_name}_{grade}"
+    
+    @staticmethod
     async def create_user(
         telegram_id: int,
         username: Optional[str],
@@ -115,6 +153,8 @@ class DatabaseManager:
         """Create a new user/registration in the database.
         
         NOTE: Multiple registrations with the same telegram_id are allowed.
+        The order_id is generated after insert to include the database ID.
+        Format: {db_id}_{Surname}_{Name}_{Grade}
         """
         async with async_session() as session:
             user = User(
@@ -132,6 +172,16 @@ class DatabaseManager:
                 screenshot_file_id=screenshot_file_id,
             )
             session.add(user)
+            await session.commit()
+            await session.refresh(user)
+            
+            # Generate order_id with the database ID
+            user.order_id = DatabaseManager.generate_order_id(
+                db_id=user.id,
+                surname=surname,
+                name=name,
+                grade=grade
+            )
             await session.commit()
             await session.refresh(user)
             return user
@@ -155,6 +205,17 @@ class DatabaseManager:
         async with async_session() as session:
             result = await session.execute(
                 select(User).where(User.id == registration_id)
+            )
+            return result.scalar_one_or_none()
+    
+    @staticmethod
+    async def get_registration_by_order_id(order_id: str) -> Optional[User]:
+        """Get registration by order_id (for Payme callback)."""
+        from sqlalchemy import select
+        
+        async with async_session() as session:
+            result = await session.execute(
+                select(User).where(User.order_id == order_id)
             )
             return result.scalar_one_or_none()
     

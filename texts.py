@@ -115,9 +115,9 @@ TEXTS: dict[str, dict[str, str]] = {
     
     # Payment
     "payment_info": {
-        "ru": "💳 Для завершения регистрации необходимо оплатить участие в Олимпиаде.\n\n💰 Сумма к оплате: **{amount} сум**\n\n👇 Нажмите кнопку ниже для оплаты через Payme.\n\n📝 **Инструкция:**\n1. Нажмите \"Оплатить через Payme\"\n2. Введите сумму: **{amount}** сум\n3. Оплатите\n4. Вернитесь и нажмите \"Я оплатил\"\n5. Отправьте скриншот чека",
-        "uz": "💳 Ro'yxatdan o'tishni yakunlash uchun Olimpiada ishtirok haqini to'lashingiz kerak.\n\n💰 To'lov summasi: **{amount} so'm**\n\n👇 Payme orqali to'lash uchun quyidagi tugmani bosing.\n\n📝 **Ko'rsatma:**\n1. \"Payme orqali to'lash\" tugmasini bosing\n2. Summani kiriting: **{amount}** so'm\n3. To'lang\n4. Qaytib keling va \"Men to'ladim\" tugmasini bosing\n5. Chek skrinshotini yuboring",
-        "en": "💳 To complete registration, you need to pay the Olympiad participation fee.\n\n💰 Amount to pay: **{amount} UZS**\n\n👇 Press the button below to pay via Payme.\n\n📝 **Instructions:**\n1. Click \"Pay via Payme\"\n2. Enter amount: **{amount}** UZS\n3. Complete payment\n4. Return and click \"I have paid\"\n5. Send a screenshot of the receipt",
+        "ru": "💳 Для завершения регистрации необходимо оплатить участие в Олимпиаде.\n\n💰 Сумма: **{amount} сум**\n\n👇 Нажмите кнопку ниже для оплаты через Payme.\nСумма уже указана в платёжной форме.\n\n⚠️ После оплаты нажмите \"Я оплатил\" и отправьте скриншот чека.",
+        "uz": "💳 Ro'yxatdan o'tishni yakunlash uchun Olimpiada ishtirok haqini to'lashingiz kerak.\n\n💰 Summa: **{amount} so'm**\n\n👇 Payme orqali to'lash uchun quyidagi tugmani bosing.\nSumma to'lov formasida ko'rsatilgan.\n\n⚠️ To'lovdan so'ng \"Men to'ladim\" tugmasini bosing va chek skrinshotini yuboring.",
+        "en": "💳 To complete registration, you need to pay the Olympiad participation fee.\n\n💰 Amount: **{amount} UZS**\n\n👇 Press the button below to pay via Payme.\nThe amount is pre-filled in the payment form.\n\n⚠️ After payment, click \"I have paid\" and send a screenshot of the receipt.",
     },
     "payment_button": {
         "ru": "💸 Оплатить через Payme",
@@ -144,9 +144,9 @@ TEXTS: dict[str, dict[str, str]] = {
     
     # Completion
     "registration_complete": {
-        "ru": "🎉 Поздравляем! Регистрация успешно завершена!\n\n📋 Данные участника:\n• Фамилия: {surname}\n• Имя: {name}\n• Класс: {grade}\n• Школа: {school}\n\n👤 Родитель: {parent_name}\n📧 Email: {email}\n📱 Телефон: {phone}\n\n✅ Оплата подтверждена.\n\nУдачи на Олимпиаде! 🏆",
-        "uz": "🎉 Tabriklaymiz! Ro'yxatdan o'tish muvaffaqiyatli yakunlandi!\n\n📋 Ishtirokchi ma'lumotlari:\n• Familiya: {surname}\n• Ism: {name}\n• Sinf: {grade}\n• Maktab: {school}\n\n👤 Ota-ona: {parent_name}\n📧 Email: {email}\n📱 Telefon: {phone}\n\n✅ To'lov tasdiqlandi.\n\nOlimpiadada omad! 🏆",
-        "en": "🎉 Congratulations! Registration is complete!\n\n📋 Participant details:\n• Surname: {surname}\n• Name: {name}\n• Grade: {grade}\n• School: {school}\n\n👤 Parent: {parent_name}\n📧 Email: {email}\n📱 Phone: {phone}\n\n✅ Payment confirmed.\n\nGood luck at the Olympiad! 🏆",
+        "ru": "🎉 Поздравляем! Регистрация успешно завершена!\n\n📋 Данные участника:\n• Фамилия: {surname}\n• Имя: {name}\n• Класс: {grade}\n• Школа: {school}\n\n👤 Родитель: {parent_name}\n📧 Email: {email}\n📱 Телефон: {phone}\n\n🔖 Номер заказа: `{order_id}`\n\n✅ Оплата подтверждена.\n\nУдачи на Олимпиаде! 🏆",
+        "uz": "🎉 Tabriklaymiz! Ro'yxatdan o'tish muvaffaqiyatli yakunlandi!\n\n📋 Ishtirokchi ma'lumotlari:\n• Familiya: {surname}\n• Ism: {name}\n• Sinf: {grade}\n• Maktab: {school}\n\n👤 Ota-ona: {parent_name}\n📧 Email: {email}\n📱 Telefon: {phone}\n\n🔖 Buyurtma raqami: `{order_id}`\n\n✅ To'lov tasdiqlandi.\n\nOlimpiadada omad! 🏆",
+        "en": "🎉 Congratulations! Registration is complete!\n\n📋 Participant details:\n• Surname: {surname}\n• Name: {name}\n• Grade: {grade}\n• School: {school}\n\n👤 Parent: {parent_name}\n📧 Email: {email}\n📱 Phone: {phone}\n\n🔖 Order ID: `{order_id}`\n\n✅ Payment confirmed.\n\nGood luck at the Olympiad! 🏆",
     },
     
     # Register another child

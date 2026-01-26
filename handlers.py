@@ -3,10 +3,11 @@ Handlers module with FSM logic for the Olympiad Registration Bot.
 Refactored to support:
 - Multiple registrations per Telegram account
 - Parent name and email fields
-- Payme payment link
+- Payme checkout with fixed amount
 - Grades 1-8 only
 """
 
+import base64
 import io
 import logging
 import re
@@ -123,54 +124,35 @@ def validate_grade(text: str) -> tuple[bool, int]:
         return False, 0
 
 
-def transliterate_to_latin(text: str) -> str:
-    """Transliterate Cyrillic text to Latin for Payme URL."""
-    cyrillic_to_latin = {
-        'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo',
-        'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
-        'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
-        'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch',
-        'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
-        'ў': 'o', 'қ': 'q', 'ғ': 'g', 'ҳ': 'h',
-        'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Е': 'E', 'Ё': 'Yo',
-        'Ж': 'Zh', 'З': 'Z', 'И': 'I', 'Й': 'Y', 'К': 'K', 'Л': 'L', 'М': 'M',
-        'Н': 'N', 'О': 'O', 'П': 'P', 'Р': 'R', 'С': 'S', 'Т': 'T', 'У': 'U',
-        'Ф': 'F', 'Х': 'Kh', 'Ц': 'Ts', 'Ч': 'Ch', 'Ш': 'Sh', 'Щ': 'Shch',
-        'Ъ': '', 'Ы': 'Y', 'Ь': '', 'Э': 'E', 'Ю': 'Yu', 'Я': 'Ya',
-        'Ў': 'O', 'Қ': 'Q', 'Ғ': 'G', 'Ҳ': 'H',
-    }
-    result = ''
-    for char in text:
-        result += cyrillic_to_latin.get(char, char)
-    return result
-
-
 def generate_payme_link(
     merchant_id: str,
     amount: int,
-    user_id: int,
-    student_name: str,
-    grade: int,
+    order_id: str,
 ) -> str:
     """
-    Generate Payme payment URL.
-    
-    Uses the fallback merchant page since checkout.paycom.uz requires 
-    a business agreement with Payme.
+    Generate Payme checkout URL with base64-encoded parameters.
     
     Args:
-        merchant_id: Payme Merchant ID
-        amount: Amount in tiyins
-        user_id: Telegram user ID
-        student_name: Student's full name
-        grade: Student's grade
+        merchant_id: Payme Merchant ID (from Payme Business dashboard)
+        amount: Amount in tiyins (fixed)
+        order_id: Order ID from database (format: {db_id}_{Surname}_{Name}_{Grade})
         
     Returns:
-        Payme merchant page URL
+        Payme checkout URL with fixed amount
     """
-    # Use fallback merchant page (P2P-style payment)
-    # This works without checkout API configuration
-    payme_url = f"https://payme.uz/fallback/merchant/?id={merchant_id}"
+    # Build parameters for Payme checkout
+    # Format: m=MERCHANT_ID;ac.order_id=ORDER_ID;a=AMOUNT;l=ru
+    params = f"m={merchant_id};ac.order_id={order_id};a={amount};l=ru"
+    
+    # Encode to base64
+    encoded = base64.b64encode(params.encode('utf-8')).decode('utf-8')
+    
+    # Build checkout URL
+    payme_url = f"https://checkout.paycom.uz/{encoded}"
+    
+    # NOTE: If checkout.paycom.uz doesn't work, you can use fallback:
+    # payme_url = f"https://payme.uz/fallback/merchant/?id={merchant_id}&amount={amount}&order_id={order_id}"
+    # But fallback URL requires manual amount entry
     
     return payme_url
 
@@ -523,25 +505,49 @@ async def process_phone_contact(message: Message, state: FSMContext) -> None:
     
     await state.update_data(phone=phone)
     
-    # Generate Payme link
-    student_name = f"{data.get('surname', '')} {data.get('name', '')}"
-    payme_url = generate_payme_link(
-        merchant_id=PAYME_MERCHANT_ID,
-        amount=OLYMPIAD_PRICE,
-        user_id=user_id,
-        student_name=student_name,
-        grade=data.get('grade', 0),
-    )
-    
-    # Format amount for display (tiyins to sum)
-    amount_display = OLYMPIAD_PRICE // 100
-    
-    await message.answer(
-        get_text("payment_info", lang, amount=amount_display),
-        reply_markup=create_payment_keyboard(lang, payme_url),
-    )
-    
-    await state.set_state(RegState.Payment)
+    try:
+        # Create registration in database FIRST to get order_id
+        # payment_status=False until screenshot is received
+        user = await DatabaseManager.create_user(
+            telegram_id=user_id,
+            username=username if username != "N/A" else None,
+            parent_name=data["parent_name"],
+            email=data["email"],
+            phone=phone,
+            surname=data["surname"],
+            name=data["name"],
+            grade=data["grade"],
+            school=data["school"],
+            language=LanguageEnum(lang),
+            payment_status=False,  # Will be updated after screenshot
+            screenshot_file_id=None,
+        )
+        
+        logger.info(f"[{user_id}] [{username}] - Created DB record ID: {user.id}, order_id: {user.order_id}")
+        
+        # Store registration ID for later update
+        await state.update_data(registration_id=user.id, order_id=user.order_id)
+        
+        # Generate Payme link with order_id from database
+        payme_url = generate_payme_link(
+            merchant_id=PAYME_MERCHANT_ID,
+            amount=OLYMPIAD_PRICE,
+            order_id=user.order_id,
+        )
+        
+        # Format amount for display (tiyins to sum)
+        amount_display = OLYMPIAD_PRICE // 100
+        
+        await message.answer(
+            get_text("payment_info", lang, amount=amount_display),
+            reply_markup=create_payment_keyboard(lang, payme_url),
+        )
+        
+        await state.set_state(RegState.Payment)
+        
+    except Exception as e:
+        logger.error(f"[{user_id}] [{username}] - Database error creating record: {e}")
+        await message.answer(get_text("error_occurred", lang))
 
 
 @router.message(StateFilter(RegState.Phone), F.text)
@@ -595,25 +601,39 @@ async def process_screenshot(message: Message, state: FSMContext) -> None:
     logger.info(f"[{user_id}] [{username}] - Uploaded screenshot: {file_id}")
     
     try:
-        # Create registration in database
-        user = await DatabaseManager.create_user(
-            telegram_id=user_id,
-            username=username if username != "N/A" else None,
-            parent_name=data["parent_name"],
-            email=data["email"],
-            phone=data["phone"],
-            surname=data["surname"],
-            name=data["name"],
-            grade=data["grade"],
-            school=data["school"],
-            language=LanguageEnum(lang),
-            payment_status=True,
-            screenshot_file_id=file_id,
-        )
+        # Get registration ID from state
+        registration_id = data.get("registration_id")
+        order_id = data.get("order_id")
         
-        logger.info(f"[{user_id}] [{username}] - Registration completed, DB ID: {user.id}")
+        if registration_id:
+            # Update existing registration with payment status
+            user = await DatabaseManager.update_registration_payment(
+                registration_id=registration_id,
+                payment_status=True,
+                screenshot_file_id=file_id,
+            )
+            logger.info(f"[{user_id}] [{username}] - Updated registration ID: {registration_id}, order_id: {order_id}")
+        else:
+            # Fallback: create new registration (shouldn't happen normally)
+            logger.warning(f"[{user_id}] [{username}] - No registration_id in state, creating new record")
+            user = await DatabaseManager.create_user(
+                telegram_id=user_id,
+                username=username if username != "N/A" else None,
+                parent_name=data["parent_name"],
+                email=data["email"],
+                phone=data["phone"],
+                surname=data["surname"],
+                name=data["name"],
+                grade=data["grade"],
+                school=data["school"],
+                language=LanguageEnum(lang),
+                payment_status=True,
+                screenshot_file_id=file_id,
+            )
         
-        # Send completion message
+        logger.info(f"[{user_id}] [{username}] - Registration completed, DB ID: {user.id}, order_id: {user.order_id}")
+        
+        # Send completion message with order_id
         await message.answer(
             get_text(
                 "registration_complete",
@@ -625,7 +645,9 @@ async def process_screenshot(message: Message, state: FSMContext) -> None:
                 parent_name=data["parent_name"],
                 email=data["email"],
                 phone=data["phone"],
+                order_id=user.order_id,
             ),
+            parse_mode="Markdown",
         )
         
         # Show "Register another" button
