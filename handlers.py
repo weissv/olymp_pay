@@ -661,6 +661,19 @@ async def process_payment_done(callback: CallbackQuery, state: FSMContext) -> No
     await state.set_state(RegState.ScreenshotProof)
 
 
+@router.message(StateFilter(RegState.Payment), F.photo)
+async def process_payment_photo_direct(message: Message, state: FSMContext) -> None:
+    """Handle photo sent directly in Payment state (without clicking 'I paid')."""
+    user_id = message.from_user.id
+    username = message.from_user.username or "N/A"
+    
+    logger.info(f"[{user_id}] [{username}] - Sent photo directly in Payment state, redirecting to screenshot handler")
+    
+    # Move to screenshot state and process the photo
+    await state.set_state(RegState.ScreenshotProof)
+    await process_screenshot(message, state)
+
+
 # ==================== Screenshot Handler ====================
 
 @router.message(StateFilter(RegState.ScreenshotProof), F.photo)
