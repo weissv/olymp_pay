@@ -252,6 +252,10 @@ async def cmd_export(message: Message) -> None:
             await message.answer(get_text("admin_export_empty", "en"))
             return
         
+        # Convert timezone-aware datetime to timezone-naive for Excel compatibility
+        if 'created_at' in df.columns:
+            df['created_at'] = df['created_at'].dt.tz_localize(None)
+        
         excel_buffer = io.BytesIO()
         with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
             df.to_excel(writer, index=False, sheet_name='Registrations')
