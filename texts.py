@@ -144,9 +144,9 @@ TEXTS: dict[str, dict[str, str]] = {
     
     # Completion
     "registration_complete": {
-        "ru": "🎉 Поздравляем! Регистрация успешно завершена!\n\n📋 Данные участника:\n• Фамилия: {surname}\n• Имя: {name}\n• Класс: {grade}\n• Школа: {school}\n\n👤 Родитель: {parent_name}\n📧 Email: {email}\n📱 Телефон: {phone}\n\n🔖 Номер заказа: `{order_id}`\n\n✅ Оплата подтверждена.\n\nУдачи на Олимпиаде! 🏆",
-        "uz": "🎉 Tabriklaymiz! Ro'yxatdan o'tish muvaffaqiyatli yakunlandi!\n\n📋 Ishtirokchi ma'lumotlari:\n• Familiya: {surname}\n• Ism: {name}\n• Sinf: {grade}\n• Maktab: {school}\n\n👤 Ota-ona: {parent_name}\n📧 Email: {email}\n📱 Telefon: {phone}\n\n🔖 Buyurtma raqami: `{order_id}`\n\n✅ To'lov tasdiqlandi.\n\nOlimpiadada omad! 🏆",
-        "en": "🎉 Congratulations! Registration is complete!\n\n📋 Participant details:\n• Surname: {surname}\n• Name: {name}\n• Grade: {grade}\n• School: {school}\n\n👤 Parent: {parent_name}\n📧 Email: {email}\n📱 Phone: {phone}\n\n🔖 Order ID: `{order_id}`\n\n✅ Payment confirmed.\n\nGood luck at the Olympiad! 🏆",
+        "ru": "🎉 Поздравляем! Регистрация успешно завершена!\n\n📋 Данные участника:\n• Фамилия: {surname}\n• Имя: {name}\n• Класс: {grade}\n• Школа: {school}\n\n👤 Родитель: {parent_name}\n📧 Email: {email}\n📱 Телефон: {phone}\n\n🔖 Номер заказа: `{charge_id}`\n\n✅ Оплата подтверждена.\n\nУдачи на Олимпиаде! 🏆",
+        "uz": "🎉 Tabriklaymiz! Ro'yxatdan o'tish muvaffaqiyatli yakunlandi!\n\n📋 Ishtirokchi ma'lumotlari:\n• Familiya: {surname}\n• Ism: {name}\n• Sinf: {grade}\n• Maktab: {school}\n\n👤 Ota-ona: {parent_name}\n📧 Email: {email}\n📱 Telefon: {phone}\n\n🔖 Buyurtma raqami: `{charge_id}`\n\n✅ To'lov tasdiqlandi.\n\nOlimpiadada omad! 🏆",
+        "en": "🎉 Congratulations! Registration is complete!\n\n📋 Participant details:\n• Surname: {surname}\n• Name: {name}\n• Grade: {grade}\n• School: {school}\n\n👤 Parent: {parent_name}\n📧 Email: {email}\n📱 Phone: {phone}\n\n🔖 Charge ID: `{charge_id}`\n\n✅ Payment confirmed.\n\nGood luck at the Olympiad! 🏆",
     },
     
     # Register another child

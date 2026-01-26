@@ -50,8 +50,8 @@ class User(Base):
     grade: Mapped[int] = mapped_column(Integer, nullable=False)         # Grades 1-8 only
     school: Mapped[str] = mapped_column(String(500), nullable=False)
     
-    # Order ID for Payme (format: {id}_{Surname}_{Name}_{Grade})
-    order_id: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, unique=True, index=True)
+    # Charge ID for Payme (format: {id}_{Surname}_{Name}_{Grade})
+    charge_id: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, unique=True, index=True)
     
     # System fields
     language: Mapped[LanguageEnum] = mapped_column(
@@ -126,8 +126,8 @@ class DatabaseManager:
         return result
     
     @staticmethod
-    def generate_order_id(db_id: int, surname: str, name: str, grade: int) -> str:
-        """Generate order_id in format: {db_id}_{Surname}_{Name}_{Grade}.
+    def generate_charge_id(db_id: int, surname: str, name: str, grade: int) -> str:
+        """Generate charge_id in format: {db_id}_{Surname}_{Name}_{Grade}.
         
         Example: 12345_Ivanov_Ivan_5
         """
@@ -153,7 +153,7 @@ class DatabaseManager:
         """Create a new user/registration in the database.
         
         NOTE: Multiple registrations with the same telegram_id are allowed.
-        The order_id is generated after insert to include the database ID.
+        The charge_id is generated after insert to include the database ID.
         Format: {db_id}_{Surname}_{Name}_{Grade}
         """
         async with async_session() as session:
@@ -175,8 +175,8 @@ class DatabaseManager:
             await session.commit()
             await session.refresh(user)
             
-            # Generate order_id with the database ID
-            user.order_id = DatabaseManager.generate_order_id(
+            # Generate charge_id with the database ID
+            user.charge_id = DatabaseManager.generate_charge_id(
                 db_id=user.id,
                 surname=surname,
                 name=name,
@@ -209,13 +209,13 @@ class DatabaseManager:
             return result.scalar_one_or_none()
     
     @staticmethod
-    async def get_registration_by_order_id(order_id: str) -> Optional[User]:
-        """Get registration by order_id (for Payme callback)."""
+    async def get_registration_by_charge_id(charge_id: str) -> Optional[User]:
+        """Get registration by charge_id (for Payme callback)."""
         from sqlalchemy import select
         
         async with async_session() as session:
             result = await session.execute(
-                select(User).where(User.order_id == order_id)
+                select(User).where(User.charge_id == charge_id)
             )
             return result.scalar_one_or_none()
     

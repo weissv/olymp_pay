@@ -127,7 +127,7 @@ def validate_grade(text: str) -> tuple[bool, int]:
 def generate_payme_link(
     merchant_id: str,
     amount: int,
-    order_id: str,
+    charge_id: str,
 ) -> str:
     """
     Generate Payme checkout URL with base64-encoded parameters.
@@ -135,14 +135,14 @@ def generate_payme_link(
     Args:
         merchant_id: Payme Merchant ID (from Payme Business dashboard)
         amount: Amount in tiyins (fixed)
-        order_id: Order ID from database (format: {db_id}_{Surname}_{Name}_{Grade})
+        charge_id: Charge ID from database (format: {db_id}_{Surname}_{Name}_{Grade})
         
     Returns:
         Payme checkout URL with fixed amount
     """
     # Build parameters for Payme checkout
-    # Format: m=MERCHANT_ID;ac.order_id=ORDER_ID;a=AMOUNT;l=ru
-    params = f"m={merchant_id};ac.order_id={order_id};a={amount};l=ru"
+    # Format: m=MERCHANT_ID;ac.charge_id=CHARGE_ID;a=AMOUNT;l=ru
+    params = f"m={merchant_id};ac.charge_id={charge_id};a={amount};l=ru"
     
     # Encode to base64
     encoded = base64.b64encode(params.encode('utf-8')).decode('utf-8')
@@ -150,9 +150,7 @@ def generate_payme_link(
     # Build checkout URL
     payme_url = f"https://checkout.paycom.uz/{encoded}"
     
-    # NOTE: If checkout.paycom.uz doesn't work, you can use fallback:
-    # payme_url = f"https://payme.uz/fallback/merchant/?id={merchant_id}&amount={amount}&order_id={order_id}"
-    # But fallback URL requires manual amount entry
+    logger.info(f"Generated Payme URL with charge_id={charge_id}, amount={amount}")
     
     return payme_url
 
@@ -523,16 +521,16 @@ async def process_phone_contact(message: Message, state: FSMContext) -> None:
             screenshot_file_id=None,
         )
         
-        logger.info(f"[{user_id}] [{username}] - Created DB record ID: {user.id}, order_id: {user.order_id}")
+        logger.info(f"[{user_id}] [{username}] - Created DB record ID: {user.id}, charge_id: {user.charge_id}")
         
         # Store registration ID for later update
-        await state.update_data(registration_id=user.id, order_id=user.order_id)
+        await state.update_data(registration_id=user.id, charge_id=user.charge_id)
         
-        # Generate Payme link with order_id from database
+        # Generate Payme link with charge_id from database
         payme_url = generate_payme_link(
             merchant_id=PAYME_MERCHANT_ID,
             amount=OLYMPIAD_PRICE,
-            order_id=user.order_id,
+            charge_id=user.charge_id,
         )
         
         # Format amount for display (tiyins to sum)
@@ -603,7 +601,7 @@ async def process_screenshot(message: Message, state: FSMContext) -> None:
     try:
         # Get registration ID from state
         registration_id = data.get("registration_id")
-        order_id = data.get("order_id")
+        charge_id = data.get("charge_id")
         
         if registration_id:
             # Update existing registration with payment status
@@ -612,7 +610,7 @@ async def process_screenshot(message: Message, state: FSMContext) -> None:
                 payment_status=True,
                 screenshot_file_id=file_id,
             )
-            logger.info(f"[{user_id}] [{username}] - Updated registration ID: {registration_id}, order_id: {order_id}")
+            logger.info(f"[{user_id}] [{username}] - Updated registration ID: {registration_id}, charge_id: {charge_id}")
         else:
             # Fallback: create new registration (shouldn't happen normally)
             logger.warning(f"[{user_id}] [{username}] - No registration_id in state, creating new record")
@@ -631,9 +629,9 @@ async def process_screenshot(message: Message, state: FSMContext) -> None:
                 screenshot_file_id=file_id,
             )
         
-        logger.info(f"[{user_id}] [{username}] - Registration completed, DB ID: {user.id}, order_id: {user.order_id}")
+        logger.info(f"[{user_id}] [{username}] - Registration completed, DB ID: {user.id}, charge_id: {user.charge_id}")
         
-        # Send completion message with order_id
+        # Send completion message with charge_id
         await message.answer(
             get_text(
                 "registration_complete",
@@ -645,7 +643,7 @@ async def process_screenshot(message: Message, state: FSMContext) -> None:
                 parent_name=data["parent_name"],
                 email=data["email"],
                 phone=data["phone"],
-                order_id=user.order_id,
+                charge_id=user.charge_id,
             ),
             parse_mode="Markdown",
         )
