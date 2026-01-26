@@ -19,9 +19,9 @@ TEXTS: dict[str, dict[str, str]] = {
     
     # Welcome message
     "welcome": {
-        "ru": "🎓 Добро пожаловать в бот регистрации на Олимпиаду!\n\nВы можете зарегистрировать одного или нескольких участников.\n\nДавайте начнём процесс регистрации.",
-        "uz": "🎓 Olimpiadaga ro'yxatdan o'tish botiga xush kelibsiz!\n\nSiz bir yoki bir nechta ishtirokchini ro'yxatdan o'tkazishingiz mumkin.\n\nRo'yxatdan o'tish jarayonini boshlaymiz.",
-        "en": "🎓 Welcome to the Olympiad Registration Bot!\n\nYou can register one or more participants.\n\nLet's start the registration process.",
+        "ru": "🎓 Добро пожаловать в бот регистрации на 2-й тур Олимпиады MathOlimp-2026.\n\nВы можете зарегистрировать одного или нескольких участников.\n\nДавайте начнём процесс регистрации.",
+        "uz": "🎓 MathOlimp-2026 Olimpiadasining 2-tur ro'yxatdan o'tish botiga xush kelibsiz.\n\nSiz bir yoki bir nechta ishtirokchini ro'yxatdan o'tkazishingiz mumkin.\n\nRo'yxatdan o'tish jarayonini boshlaymiz.",
+        "en": "🎓 Welcome to the MathOlimp-2026 2nd Round registration bot.\n\nYou can register one or more participants.\n\nLet's start the registration process.",
     },
     
     # Parent Name
@@ -50,9 +50,9 @@ TEXTS: dict[str, dict[str, str]] = {
     
     # Participant Surname
     "ask_surname": {
-        "ru": "📝 Введите фамилию участника:",
-        "uz": "📝 Ishtirokchi familiyasini kiriting:",
-        "en": "📝 Enter participant's surname:",
+        "ru": "📝 Введите фамилию участника: (Как в паспорте)",
+        "uz": "📝 Ishtirokchi familiyasini kiriting: (Pasportdagi kabi)",
+        "en": "📝 Enter participant's surname: (As in passport)",
     },
     "invalid_surname": {
         "ru": "❌ Фамилия должна содержать только буквы. Попробуйте ещё раз:",
@@ -62,9 +62,9 @@ TEXTS: dict[str, dict[str, str]] = {
     
     # Participant Name
     "ask_name": {
-        "ru": "📝 Введите имя участника:",
-        "uz": "📝 Ishtirokchi ismini kiriting:",
-        "en": "📝 Enter participant's first name:",
+        "ru": "📝 Введите имя участника: (Как в паспорте)",
+        "uz": "📝 Ishtirokchi ismini kiriting: (Pasportdagi kabi)",
+        "en": "📝 Enter participant's first name: (As in passport)",
     },
     "invalid_name": {
         "ru": "❌ Имя должно содержать только буквы. Попробуйте ещё раз:",
