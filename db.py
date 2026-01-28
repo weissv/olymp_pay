@@ -256,3 +256,169 @@ class DatabaseManager:
                 select(func.count(User.id)).where(User.telegram_id == telegram_id)
             )
             return result.scalar() or 0
+
+    @staticmethod
+    async def get_detailed_statistics() -> dict:
+        """
+        Get comprehensive statistics for admin /news command.
+        Returns detailed breakdown of registrations, payments, grades, etc.
+        """
+        from sqlalchemy import select, func, distinct, case
+        from datetime import datetime, timedelta
+        from collections import defaultdict
+        
+        async with async_session() as session:
+            stats = {}
+            
+            # 1. Total registrations
+            total_result = await session.execute(select(func.count(User.id)))
+            stats['total_registrations'] = total_result.scalar() or 0
+            
+            # 2. Unique Telegram users (parents)
+            unique_users_result = await session.execute(
+                select(func.count(distinct(User.telegram_id)))
+            )
+            stats['unique_telegram_users'] = unique_users_result.scalar() or 0
+            
+            # 3. Payment statistics
+            paid_result = await session.execute(
+                select(func.count(User.id)).where(User.payment_status == True)
+            )
+            stats['paid_count'] = paid_result.scalar() or 0
+            stats['unpaid_count'] = stats['total_registrations'] - stats['paid_count']
+            stats['payment_rate'] = round(
+                (stats['paid_count'] / stats['total_registrations'] * 100) if stats['total_registrations'] > 0 else 0, 1
+            )
+            
+            # 4. Screenshots uploaded
+            screenshots_result = await session.execute(
+                select(func.count(User.id)).where(User.screenshot_file_id.isnot(None))
+            )
+            stats['screenshots_uploaded'] = screenshots_result.scalar() or 0
+            
+            # 5. Registrations by grade
+            grades_result = await session.execute(
+                select(User.grade, func.count(User.id)).group_by(User.grade).order_by(User.grade)
+            )
+            stats['by_grade'] = {row[0]: row[1] for row in grades_result.fetchall()}
+            
+            # 6. Paid registrations by grade
+            paid_by_grade_result = await session.execute(
+                select(User.grade, func.count(User.id))
+                .where(User.payment_status == True)
+                .group_by(User.grade)
+                .order_by(User.grade)
+            )
+            stats['paid_by_grade'] = {row[0]: row[1] for row in paid_by_grade_result.fetchall()}
+            
+            # 7. Registrations by language
+            lang_result = await session.execute(
+                select(User.language, func.count(User.id)).group_by(User.language)
+            )
+            stats['by_language'] = {str(row[0].value): row[1] for row in lang_result.fetchall()}
+            
+            # 8. Today's registrations
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_result = await session.execute(
+                select(func.count(User.id)).where(User.created_at >= today_start)
+            )
+            stats['today_registrations'] = today_result.scalar() or 0
+            
+            # 9. Today's paid
+            today_paid_result = await session.execute(
+                select(func.count(User.id)).where(
+                    User.created_at >= today_start,
+                    User.payment_status == True
+                )
+            )
+            stats['today_paid'] = today_paid_result.scalar() or 0
+            
+            # 10. Last 7 days registrations
+            week_ago = datetime.now() - timedelta(days=7)
+            week_result = await session.execute(
+                select(func.count(User.id)).where(User.created_at >= week_ago)
+            )
+            stats['last_7_days_registrations'] = week_result.scalar() or 0
+            
+            # 11. Last 7 days paid
+            week_paid_result = await session.execute(
+                select(func.count(User.id)).where(
+                    User.created_at >= week_ago,
+                    User.payment_status == True
+                )
+            )
+            stats['last_7_days_paid'] = week_paid_result.scalar() or 0
+            
+            # 12. Top schools (by registration count)
+            schools_result = await session.execute(
+                select(User.school, func.count(User.id).label('cnt'))
+                .group_by(User.school)
+                .order_by(func.count(User.id).desc())
+                .limit(10)
+            )
+            stats['top_schools'] = [(row[0], row[1]) for row in schools_result.fetchall()]
+            
+            # 13. Average registrations per user (parent)
+            stats['avg_registrations_per_user'] = round(
+                stats['total_registrations'] / stats['unique_telegram_users'] if stats['unique_telegram_users'] > 0 else 0, 2
+            )
+            
+            # 14. Users with multiple registrations
+            multi_reg_result = await session.execute(
+                select(func.count(distinct(User.telegram_id)))
+                .where(
+                    User.telegram_id.in_(
+                        select(User.telegram_id)
+                        .group_by(User.telegram_id)
+                        .having(func.count(User.id) > 1)
+                    )
+                )
+            )
+            stats['users_with_multiple_registrations'] = multi_reg_result.scalar() or 0
+            
+            # 15. Registrations by date (last 7 days breakdown)
+            daily_stats = []
+            for i in range(7):
+                day = datetime.now() - timedelta(days=i)
+                day_start = day.replace(hour=0, minute=0, second=0, microsecond=0)
+                day_end = day_start + timedelta(days=1)
+                
+                day_count_result = await session.execute(
+                    select(func.count(User.id)).where(
+                        User.created_at >= day_start,
+                        User.created_at < day_end
+                    )
+                )
+                day_paid_result = await session.execute(
+                    select(func.count(User.id)).where(
+                        User.created_at >= day_start,
+                        User.created_at < day_end,
+                        User.payment_status == True
+                    )
+                )
+                daily_stats.append({
+                    'date': day_start.strftime('%d.%m'),
+                    'registrations': day_count_result.scalar() or 0,
+                    'paid': day_paid_result.scalar() or 0
+                })
+            stats['daily_breakdown'] = daily_stats
+            
+            # 16. First and last registration timestamps
+            first_result = await session.execute(
+                select(User.created_at).order_by(User.created_at.asc()).limit(1)
+            )
+            last_result = await session.execute(
+                select(User.created_at).order_by(User.created_at.desc()).limit(1)
+            )
+            first_reg = first_result.scalar_one_or_none()
+            last_reg = last_result.scalar_one_or_none()
+            stats['first_registration'] = first_reg.strftime('%d.%m.%Y %H:%M') if first_reg else 'N/A'
+            stats['last_registration'] = last_reg.strftime('%d.%m.%Y %H:%M') if last_reg else 'N/A'
+            
+            # 17. Potential revenue
+            from config import OLYMPIAD_PRICE
+            stats['total_potential_revenue'] = stats['total_registrations'] * OLYMPIAD_PRICE
+            stats['actual_revenue'] = stats['paid_count'] * OLYMPIAD_PRICE
+            stats['pending_revenue'] = stats['unpaid_count'] * OLYMPIAD_PRICE
+            
+            return stats

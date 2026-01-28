@@ -355,6 +355,116 @@ async def cmd_view(message: Message) -> None:
         await message.answer(get_text("error_occurred", "en"))
 
 
+@router.message(Command("news"))
+async def cmd_news(message: Message) -> None:
+    """
+    Handle /news command - admin only.
+    Sends detailed statistics report to admin.
+    """
+    user_id = message.from_user.id
+    username = message.from_user.username or "N/A"
+    
+    logger.info(f"[{user_id}] [{username}] - Requested statistics (/news)")
+    
+    if user_id not in ADMIN_IDS:
+        logger.warning(f"[{user_id}] [{username}] - Access denied for /news")
+        await message.answer(get_text("admin_access_denied", "en"))
+        return
+    
+    await message.answer("⏳ Собираю статистику...")
+    
+    try:
+        stats = await DatabaseManager.get_detailed_statistics()
+        
+        # Format price in UZS (convert from tiyin)
+        total_potential = stats['total_potential_revenue'] / 100
+        actual_revenue = stats['actual_revenue'] / 100
+        pending_revenue = stats['pending_revenue'] / 100
+        
+        # Build comprehensive report
+        report = f"""
+📊 **СТАТИСТИКА ОЛИМПИАДЫ**
+{'═' * 30}
+
+🔢 **ОБЩИЕ ПОКАЗАТЕЛИ:**
+├ 📝 Всего регистраций: **{stats['total_registrations']}**
+├ 👥 Уникальных пользователей: **{stats['unique_telegram_users']}**
+├ 📊 Среднее рег./пользователь: **{stats['avg_registrations_per_user']}**
+└ 👨‍👩‍👧‍👦 С несколькими детьми: **{stats['users_with_multiple_registrations']}**
+
+💰 **ПЛАТЕЖИ:**
+├ ✅ Оплачено: **{stats['paid_count']}** ({stats['payment_rate']}%)
+├ ❌ Не оплачено: **{stats['unpaid_count']}**
+├ 📸 Скриншотов загружено: **{stats['screenshots_uploaded']}**
+├ 💵 Общий потенциал: **{total_potential:,.0f} UZS**
+├ 💰 Получено: **{actual_revenue:,.0f} UZS**
+└ ⏳ Ожидается: **{pending_revenue:,.0f} UZS**
+
+📅 **СЕГОДНЯ ({datetime.now().strftime('%d.%m.%Y')}):**
+├ 📝 Регистраций: **{stats['today_registrations']}**
+└ ✅ Оплачено: **{stats['today_paid']}**
+
+📆 **ЗА ПОСЛЕДНИЕ 7 ДНЕЙ:**
+├ 📝 Регистраций: **{stats['last_7_days_registrations']}**
+└ ✅ Оплачено: **{stats['last_7_days_paid']}**
+
+📈 **ДИНАМИКА ПО ДНЯМ:**
+"""
+        
+        # Add daily breakdown
+        for day in reversed(stats['daily_breakdown']):
+            bar_total = '█' * min(day['registrations'], 20) or '▫️'
+            report += f"├ {day['date']}: {day['registrations']} рег. / {day['paid']} опл. {bar_total}\n"
+        
+        report += f"""
+📚 **ПО КЛАССАМ:**
+"""
+        # Add grade breakdown
+        for grade in range(1, 9):
+            total_grade = stats['by_grade'].get(grade, 0)
+            paid_grade = stats['paid_by_grade'].get(grade, 0)
+            unpaid_grade = total_grade - paid_grade
+            bar = '█' * min(total_grade, 15) or '▫️'
+            report += f"├ {grade} класс: **{total_grade}** (✅{paid_grade}/❌{unpaid_grade}) {bar}\n"
+        
+        report += f"""
+🌐 **ПО ЯЗЫКАМ:**
+├ 🇷🇺 Русский: **{stats['by_language'].get('ru', 0)}**
+├ 🇺🇿 Узбекский: **{stats['by_language'].get('uz', 0)}**
+└ 🇬🇧 Английский: **{stats['by_language'].get('en', 0)}**
+
+🏫 **ТОП-10 ШКОЛ:**
+"""
+        
+        # Add top schools
+        for i, (school, count) in enumerate(stats['top_schools'][:10], 1):
+            school_short = school[:40] + '...' if len(school) > 40 else school
+            report += f"{i}. {school_short} — **{count}**\n"
+        
+        report += f"""
+⏰ **ВРЕМЕННЫЕ РАМКИ:**
+├ 🕐 Первая регистрация: {stats['first_registration']}
+└ 🕑 Последняя регистрация: {stats['last_registration']}
+
+{'═' * 30}
+📌 Отчёт сформирован: {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}
+"""
+        
+        # Send the report (split if too long)
+        if len(report) > 4000:
+            parts = [report[i:i+4000] for i in range(0, len(report), 4000)]
+            for part in parts:
+                await message.answer(part, parse_mode="Markdown")
+        else:
+            await message.answer(report, parse_mode="Markdown")
+        
+        logger.info(f"[{user_id}] [{username}] - Statistics report sent successfully")
+        
+    except Exception as e:
+        logger.error(f"[{user_id}] [{username}] - Statistics error: {e}")
+        await message.answer(f"❌ Ошибка при сборе статистики: {str(e)}")
+
+
 # ==================== Language Selection Handler ====================
 
 @router.callback_query(StateFilter(RegState.LanguageSelect), F.data.startswith("lang_"))
