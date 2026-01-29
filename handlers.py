@@ -35,6 +35,18 @@ from texts import LANGUAGE_BUTTONS, get_text
 
 logger = logging.getLogger(__name__)
 
+
+def escape_html(text: str) -> str:
+    """Escape HTML special characters to prevent parse errors."""
+    if text is None:
+        return ""
+    return (
+        str(text)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
 # Create router
 router = Router()
 
@@ -223,7 +235,7 @@ async def cmd_myid(message: Message, state: FSMContext) -> None:
     
     await message.answer(
         get_text("your_id", lang, user_id=user_id),
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
 
 
@@ -313,30 +325,30 @@ async def cmd_view(message: Message) -> None:
             await message.answer(f"❌ Регистрация с ID {registration_id} не найдена.")
             return
         
-        # Format registration info
+        # Format registration info (using HTML to avoid parse errors with user data)
         info = f"""
-📋 **Регистрация #{user.id}**
+📋 <b>Регистрация #{user.id}</b>
 
-👤 **Родитель:** {user.parent_name}
-📧 **Email:** {user.email}
-📱 **Телефон:** {user.phone}
+👤 <b>Родитель:</b> {escape_html(user.parent_name)}
+📧 <b>Email:</b> {escape_html(user.email)}
+📱 <b>Телефон:</b> {escape_html(user.phone)}
 
-👨‍🎓 **Участник:**
-• Фамилия: {user.surname}
-• Имя: {user.name}
+👨‍🎓 <b>Участник:</b>
+• Фамилия: {escape_html(user.surname)}
+• Имя: {escape_html(user.name)}
 • Класс: {user.grade}
-• Школа: {user.school}
+• Школа: {escape_html(user.school)}
 
-🔖 **Charge ID:** `{user.charge_id or 'N/A'}`
-💳 **Статус оплаты:** {'✅ Оплачено' if user.payment_status else '❌ Не оплачено'}
-📅 **Дата регистрации:** {user.created_at.strftime('%Y-%m-%d %H:%M:%S')}
+🔖 <b>Charge ID:</b> <code>{escape_html(user.charge_id) or 'N/A'}</code>
+💳 <b>Статус оплаты:</b> {'✅ Оплачено' if user.payment_status else '❌ Не оплачено'}
+📅 <b>Дата регистрации:</b> {user.created_at.strftime('%Y-%m-%d %H:%M:%S')}
 
-🆔 **Telegram ID:** {user.telegram_id}
-👤 **Username:** @{user.username or 'N/A'}
+🆔 <b>Telegram ID:</b> {user.telegram_id}
+👤 <b>Username:</b> @{escape_html(user.username) or 'N/A'}
 """
         
         # Send info message
-        await message.answer(info, parse_mode="Markdown")
+        await message.answer(info, parse_mode="HTML")
         
         # Send screenshot if exists
         if user.screenshot_file_id:
@@ -381,34 +393,34 @@ async def cmd_news(message: Message) -> None:
         actual_revenue = stats['actual_revenue'] / 100
         pending_revenue = stats['pending_revenue'] / 100
         
-        # Build comprehensive report
+        # Build comprehensive report (using HTML to avoid parse errors)
         report = f"""
-📊 **СТАТИСТИКА ОЛИМПИАДЫ**
+📊 <b>СТАТИСТИКА ОЛИМПИАДЫ</b>
 {'═' * 30}
 
-🔢 **ОБЩИЕ ПОКАЗАТЕЛИ:**
-├ 📝 Всего регистраций: **{stats['total_registrations']}**
-├ 👥 Уникальных пользователей: **{stats['unique_telegram_users']}**
-├ 📊 Среднее рег./пользователь: **{stats['avg_registrations_per_user']}**
-└ 👨‍👩‍👧‍👦 С несколькими детьми: **{stats['users_with_multiple_registrations']}**
+🔢 <b>ОБЩИЕ ПОКАЗАТЕЛИ:</b>
+├ 📝 Всего регистраций: <b>{stats['total_registrations']}</b>
+├ 👥 Уникальных пользователей: <b>{stats['unique_telegram_users']}</b>
+├ 📊 Среднее рег./пользователь: <b>{stats['avg_registrations_per_user']}</b>
+└ 👨‍👩‍👧‍👦 С несколькими детьми: <b>{stats['users_with_multiple_registrations']}</b>
 
-💰 **ПЛАТЕЖИ:**
-├ ✅ Оплачено: **{stats['paid_count']}** ({stats['payment_rate']}%)
-├ ❌ Не оплачено: **{stats['unpaid_count']}**
-├ 📸 Скриншотов загружено: **{stats['screenshots_uploaded']}**
-├ 💵 Общий потенциал: **{total_potential:,.0f} UZS**
-├ 💰 Получено: **{actual_revenue:,.0f} UZS**
-└ ⏳ Ожидается: **{pending_revenue:,.0f} UZS**
+💰 <b>ПЛАТЕЖИ:</b>
+├ ✅ Оплачено: <b>{stats['paid_count']}</b> ({stats['payment_rate']}%)
+├ ❌ Не оплачено: <b>{stats['unpaid_count']}</b>
+├ 📸 Скриншотов загружено: <b>{stats['screenshots_uploaded']}</b>
+├ 💵 Общий потенциал: <b>{total_potential:,.0f} UZS</b>
+├ 💰 Получено: <b>{actual_revenue:,.0f} UZS</b>
+└ ⏳ Ожидается: <b>{pending_revenue:,.0f} UZS</b>
 
-📅 **СЕГОДНЯ ({datetime.now().strftime('%d.%m.%Y')}):**
-├ 📝 Регистраций: **{stats['today_registrations']}**
-└ ✅ Оплачено: **{stats['today_paid']}**
+📅 <b>СЕГОДНЯ ({datetime.now().strftime('%d.%m.%Y')}):</b>
+├ 📝 Регистраций: <b>{stats['today_registrations']}</b>
+└ ✅ Оплачено: <b>{stats['today_paid']}</b>
 
-📆 **ЗА ПОСЛЕДНИЕ 7 ДНЕЙ:**
-├ 📝 Регистраций: **{stats['last_7_days_registrations']}**
-└ ✅ Оплачено: **{stats['last_7_days_paid']}**
+📆 <b>ЗА ПОСЛЕДНИЕ 7 ДНЕЙ:</b>
+├ 📝 Регистраций: <b>{stats['last_7_days_registrations']}</b>
+└ ✅ Оплачено: <b>{stats['last_7_days_paid']}</b>
 
-📈 **ДИНАМИКА ПО ДНЯМ:**
+📈 <b>ДИНАМИКА ПО ДНЯМ:</b>
 """
         
         # Add daily breakdown
@@ -417,7 +429,7 @@ async def cmd_news(message: Message) -> None:
             report += f"├ {day['date']}: {day['registrations']} рег. / {day['paid']} опл. {bar_total}\n"
         
         report += f"""
-📚 **ПО КЛАССАМ:**
+📚 <b>ПО КЛАССАМ:</b>
 """
         # Add grade breakdown
         for grade in range(1, 9):
@@ -425,24 +437,24 @@ async def cmd_news(message: Message) -> None:
             paid_grade = stats['paid_by_grade'].get(grade, 0)
             unpaid_grade = total_grade - paid_grade
             bar = '█' * min(total_grade, 15) or '▫️'
-            report += f"├ {grade} класс: **{total_grade}** (✅{paid_grade}/❌{unpaid_grade}) {bar}\n"
+            report += f"├ {grade} класс: <b>{total_grade}</b> (✅{paid_grade}/❌{unpaid_grade}) {bar}\n"
         
         report += f"""
-🌐 **ПО ЯЗЫКАМ:**
-├ 🇷🇺 Русский: **{stats['by_language'].get('ru', 0)}**
-├ 🇺🇿 Узбекский: **{stats['by_language'].get('uz', 0)}**
-└ 🇬🇧 Английский: **{stats['by_language'].get('en', 0)}**
+🌐 <b>ПО ЯЗЫКАМ:</b>
+├ 🇷🇺 Русский: <b>{stats['by_language'].get('ru', 0)}</b>
+├ 🇺🇿 Узбекский: <b>{stats['by_language'].get('uz', 0)}</b>
+└ 🇬🇧 Английский: <b>{stats['by_language'].get('en', 0)}</b>
 
-🏫 **ТОП-10 ШКОЛ:**
+🏫 <b>ТОП-10 ШКОЛ:</b>
 """
         
         # Add top schools
         for i, (school, count) in enumerate(stats['top_schools'][:10], 1):
             school_short = school[:40] + '...' if len(school) > 40 else school
-            report += f"{i}. {school_short} — **{count}**\n"
+            report += f"{i}. {escape_html(school_short)} — <b>{count}</b>\n"
         
         report += f"""
-⏰ **ВРЕМЕННЫЕ РАМКИ:**
+⏰ <b>ВРЕМЕННЫЕ РАМКИ:</b>
 ├ 🕐 Первая регистрация: {stats['first_registration']}
 └ 🕑 Последняя регистрация: {stats['last_registration']}
 
@@ -454,9 +466,9 @@ async def cmd_news(message: Message) -> None:
         if len(report) > 4000:
             parts = [report[i:i+4000] for i in range(0, len(report), 4000)]
             for part in parts:
-                await message.answer(part, parse_mode="Markdown")
+                await message.answer(part, parse_mode="HTML")
         else:
-            await message.answer(report, parse_mode="Markdown")
+            await message.answer(report, parse_mode="HTML")
         
         logger.info(f"[{user_id}] [{username}] - Statistics report sent successfully")
         
@@ -727,6 +739,7 @@ async def process_phone_contact(message: Message, state: FSMContext) -> None:
         await message.answer(
             get_text("payment_info", lang, amount=amount_display),
             reply_markup=create_payment_keyboard(lang, payme_url),
+            parse_mode="HTML",
         )
         
         await state.set_state(RegState.Payment)
@@ -832,24 +845,21 @@ async def process_screenshot(message: Message, state: FSMContext) -> None:
         
         logger.info(f"[{user_id}] [{username}] - Registration completed, DB ID: {user.id}, charge_id: {user.charge_id}")
         
-        # Escape underscores in charge_id for Markdown
-        escaped_charge_id = user.charge_id.replace("_", "\\_") if user.charge_id else "N/A"
-        
-        # Send completion message with charge_id
+        # Send completion message with charge_id (HTML format, escape user data)
         await message.answer(
             get_text(
                 "registration_complete",
                 lang,
-                surname=data["surname"],
-                name=data["name"],
+                surname=escape_html(data["surname"]),
+                name=escape_html(data["name"]),
                 grade=data["grade"],
-                school=data["school"],
-                parent_name=data["parent_name"],
-                email=data["email"],
-                phone=data["phone"],
-                charge_id=escaped_charge_id,
+                school=escape_html(data["school"]),
+                parent_name=escape_html(data["parent_name"]),
+                email=escape_html(data["email"]),
+                phone=escape_html(data["phone"]),
+                charge_id=escape_html(user.charge_id) if user.charge_id else "N/A",
             ),
-            parse_mode="Markdown",
+            parse_mode="HTML",
         )
         
         # Show "Register another" button
